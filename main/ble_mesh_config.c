@@ -107,9 +107,10 @@ static esp_ble_mesh_comp_t composition = {
 
 
 // -------------------- application level callback functions ------------------
-static void (*prov_complete_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
-static void (*message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
-static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx) = NULL;
+static void (*prov_complete_handler_cb)(uint16_t net_idx, uint16_t addr) = NULL;
+static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
+static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
+static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
 
 // ============ Function for used for root module (provitionor) only ============
 #if defined(ROOT_MODULE)
