@@ -12,14 +12,16 @@
 #include "iot_button.h"
 
 #define TAG "BOARD"
+#define TAG_W "Debug"
 
-#define BUTTON_IO_NUM           0
+#define BUTTON_IO_NUM           9
 #define BUTTON_ACTIVE_LEVEL     0
 
 extern void example_ble_mesh_send_vendor_message(bool resend);
 
 static void button_tap_cb(void* arg)
 {
+    ESP_LOGW(TAG_W, "button pressed ------------------------- ");
     example_ble_mesh_send_vendor_message(false);
 }
 
