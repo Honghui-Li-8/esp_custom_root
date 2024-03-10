@@ -625,13 +625,6 @@ static esp_err_t ble_mesh_init(void)
     return ESP_OK;
 }
 
-
-
-static void (*prov_complete_handler_cb)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) = NULL;
-static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
-static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
-static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
-
 static esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
     void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
@@ -681,5 +674,59 @@ static esp_err_t esp_module_root_init(
         return ESP_FAIL;
     }
 
+    return ESP_OK;
+}
+
+
+static esp_err_t esp_module_edge_init(
+    void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
+    void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode)
+) {
+    esp_err_t err;
+
+    ESP_LOGI(TAG, "Initializing EDGE Module...");
+
+    // attach application level callback
+    prov_complete_handler_cb = prov_complete_handler;
+    recv_message_handler_cb = recv_message_handler;
+    recv_response_handler_cb = recv_response_handler;
+    timeout_handler_cb = timeout_handler;
+    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL) {
+        ESP_LOGE(TAG, "Appliocation Level Callback functin is NULL");
+        return ESP_FAIL;
+    }
+
+    
+    err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+    err = bluetooth_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp32_bluetooth_init failed (err %d)", err);
+        return ESP_FAIL;
+    }
+
+    // /* Open nvs namespace for storing/restoring mesh example info */
+    // err = ble_mesh_nvs_open(&NVS_HANDLE);
+    // if (err) {
+    //     return ESP_FAIL;
+    // }
+
+    ble_mesh_get_dev_uuid(dev_uuid);
+
+    /* Initialize the Bluetooth Mesh Subsystem */
+    err = ble_mesh_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Done Initializing...");
     return ESP_OK;
 }

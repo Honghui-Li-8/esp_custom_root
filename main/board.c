@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include "esp_log.h"
 #include "iot_button.h"
+#include <string.h>
 
 #define TAG "BOARD"
 #define TAG_W "Debug"
