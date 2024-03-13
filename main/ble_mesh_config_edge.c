@@ -256,7 +256,7 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
             break;
         }
         // start_time = esp_timer_get_time();
-        ESP_LOGI(TAG, "Send 0x%06" PRIx32, param->model_send_comp.opcode);
+        ESP_LOGI(TAG, "Send opcode [0x%06" PRIx32 "] completed", param->model_send_comp.opcode);
         break;
     case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
         ESP_LOGI(TAG, "Receive publish message 0x%06" PRIx32, param->client_recv_publish_msg.opcode);
