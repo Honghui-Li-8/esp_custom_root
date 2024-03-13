@@ -34,7 +34,7 @@ static void button_tap_cb(void* arg)
     }
     
     strcpy((char*)data_buffer, "hello world");
-    send_message(5, strlen("hello world") + 1, data_buffer);
+    send_message(1, strlen("hello world") + 1, data_buffer);
 }
 
 static void board_button_init(void)
