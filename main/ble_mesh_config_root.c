@@ -26,18 +26,18 @@
 #define TAG_INFO "Net_Info"
 
 static uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN];
+static struct esp_ble_mesh_key {
+    uint16_t net_idx;
+    uint16_t app_idx;
+    uint8_t  app_key[ESP_BLE_MESH_OCTET16_LEN];
+} ble_mesh_key;
 
-static nvs_handle_t NVS_HANDLE;
+// static nvs_handle_t NVS_HANDLE;
 // static const char * NVS_KEY = NVS_KEY_ROOT;
 
 // ============ only used for root module (provitionor) ============
 #if defined(ROOT_MODULE)
 #define MSG_ROLE MSG_ROLE_ROOT
-static struct esp_ble_mesh_key {
-    uint16_t net_idx;
-    uint16_t app_idx;
-    uint8_t  app_key[ESP_BLE_MESH_OCTET16_LEN];
-} prov_key;
 
 static esp_ble_mesh_prov_t provision = {
     .prov_uuid          = dev_uuid,
@@ -153,8 +153,8 @@ static void ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,
 {
     common->opcode = opcode;
     common->model = model;
-    common->ctx.net_idx = prov_key.net_idx;
-    common->ctx.app_idx = prov_key.app_idx;
+    common->ctx.net_idx = ble_mesh_key.net_idx;
+    common->ctx.app_idx = ble_mesh_key.app_idx;
     common->ctx.addr = node->unicast_addr;
     common->ctx.send_ttl = MSG_SEND_TTL;
     common->msg_timeout = MSG_TIMEOUT;
@@ -239,9 +239,9 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
             }
 
             ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
-            set.app_key_add.net_idx = prov_key.net_idx;
-            set.app_key_add.app_idx = prov_key.app_idx;
-            memcpy(set.app_key_add.app_key, prov_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
+            set.app_key_add.net_idx = ble_mesh_key.net_idx;
+            set.app_key_add.app_idx = ble_mesh_key.app_idx;
+            memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
             err = esp_ble_mesh_config_client_set_state(&common, &set);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to send Config AppKey Add");
@@ -252,7 +252,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD) {
             ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
             set.model_app_bind.element_addr = node->unicast_addr;
-            set.model_app_bind.model_app_idx = prov_key.app_idx;
+            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
             set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
             set.model_app_bind.company_id = ECS_193_CID;
             err = esp_ble_mesh_config_client_set_state(&common, &set);
@@ -283,9 +283,9 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         }
         case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
             ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
-            set.app_key_add.net_idx = prov_key.net_idx;
-            set.app_key_add.app_idx = prov_key.app_idx;
-            memcpy(set.app_key_add.app_key, prov_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
+            set.app_key_add.net_idx = ble_mesh_key.net_idx;
+            set.app_key_add.app_idx = ble_mesh_key.app_idx;
+            memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
             err = esp_ble_mesh_config_client_set_state(&common, &set);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to send Config AppKey Add");
@@ -294,7 +294,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
             ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
             set.model_app_bind.element_addr = node->unicast_addr;
-            set.model_app_bind.model_app_idx = prov_key.app_idx;
+            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
             set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
             set.model_app_bind.company_id = ECS_193_CID;
             err = esp_ble_mesh_config_client_set_state(&common, &set);
@@ -437,8 +437,8 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     case ESP_BLE_MESH_PROVISIONER_ADD_LOCAL_APP_KEY_COMP_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_ADD_LOCAL_APP_KEY_COMP_EVT, err_code %d", param->provisioner_add_app_key_comp.err_code);
         if (param->provisioner_add_app_key_comp.err_code == 0) {
-            prov_key.app_idx = param->provisioner_add_app_key_comp.app_idx;
-            esp_err_t err = esp_ble_mesh_provisioner_bind_app_key_to_local_model(PROV_OWN_ADDR, prov_key.app_idx,
+            ble_mesh_key.app_idx = param->provisioner_add_app_key_comp.app_idx;
+            esp_err_t err = esp_ble_mesh_provisioner_bind_app_key_to_local_model(PROV_OWN_ADDR, ble_mesh_key.app_idx,
                     ECS_193_MODEL_ID_CLIENT, ECS_193_CID);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to bind AppKey to vendor client");
@@ -457,11 +457,12 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
 }
 
 #else // ------------------ Edge module (Node) functions ------------------
-static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t uuid,
-                               uint16_t primary_addr, uint8_t element_num, uint16_t net_idx)
+static esp_err_t prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
 {
+    ble_mesh_key.net_idx = net_idx;
+
     // application level callback, let main() know provision is completed
-    prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);
+    prov_complete_handler_cb(0, dev_uuid, addr, 0, net_idx);
 
     return ESP_OK;
 }
@@ -543,8 +544,8 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
     esp_err_t err;
 
-    ctx.net_idx = prov_key.net_idx;
-    ctx.app_idx = prov_key.app_idx;
+    ctx.net_idx = ble_mesh_key.net_idx;
+    ctx.app_idx = ble_mesh_key.app_idx;
     ctx.addr = dst_address;
     ctx.send_ttl = MSG_SEND_TTL;
     
@@ -572,17 +573,14 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
 // ========================= our function ==================================
 
 #if defined(ROOT_MODULE)
-#else
-#endif
-
 static esp_err_t ble_mesh_init(void)
 {
     uint8_t match[2] = { 0x32, 0x10 };
     esp_err_t err;
 
-    prov_key.net_idx = ESP_BLE_MESH_KEY_PRIMARY;
-    prov_key.app_idx = APP_KEY_IDX;
-    memset(prov_key.app_key, APP_KEY_OCTET, sizeof(prov_key.app_key));
+    ble_mesh_key.net_idx = ESP_BLE_MESH_KEY_PRIMARY;
+    ble_mesh_key.app_idx = APP_KEY_IDX;
+    memset(ble_mesh_key.app_key, APP_KEY_OCTET, sizeof(ble_mesh_key.app_key));
 
     #if defined(ROOT_MODULE)
     esp_ble_mesh_register_config_client_callback(example_ble_mesh_config_client_cb);
@@ -614,7 +612,7 @@ static esp_err_t ble_mesh_init(void)
         return err;
     }
 
-    err = esp_ble_mesh_provisioner_add_local_app_key(prov_key.app_key, prov_key.net_idx, prov_key.app_idx);
+    err = esp_ble_mesh_provisioner_add_local_app_key(ble_mesh_key.app_key, ble_mesh_key.net_idx, ble_mesh_key.app_idx);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to add local AppKey");
         return err;
@@ -624,6 +622,61 @@ static esp_err_t ble_mesh_init(void)
 
     return ESP_OK;
 }
+#else
+static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event, esp_ble_mesh_cfg_server_cb_param_t *param)
+{
+    if (event == ESP_BLE_MESH_CFG_SERVER_STATE_CHANGE_EVT) {
+        switch (param->ctx.recv_op) {
+        case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD");
+            ESP_LOGI(TAG, "net_idx 0x%04x, app_idx 0x%04x",
+                param->value.state_change.appkey_add.net_idx,
+                param->value.state_change.appkey_add.app_idx);
+            ESP_LOG_BUFFER_HEX("AppKey", param->value.state_change.appkey_add.app_key, 16);
+            break;
+        case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND");
+            ESP_LOGI(TAG, "elem_addr 0x%04x, app_idx 0x%04x, cid 0x%04x, mod_id 0x%04x",
+                param->value.state_change.mod_app_bind.element_addr,
+                param->value.state_change.mod_app_bind.app_idx,
+                param->value.state_change.mod_app_bind.company_id,
+                param->value.state_change.mod_app_bind.model_id);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+static esp_err_t ble_mesh_init(void)
+{
+    esp_err_t err;
+    
+    // ble_mesh_key.net_idx = ESP_BLE_MESH_KEY_PRIMARY;
+    ble_mesh_key.app_idx = APP_KEY_IDX;
+
+    esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);
+    esp_ble_mesh_register_custom_model_callback(ble_mesh_custom_model_cb);
+    esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
+
+    err = esp_ble_mesh_init(&provision, &composition);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize mesh stack");
+        return err;
+    }
+
+    err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to enable mesh node");
+        return err;
+    }
+
+    ESP_LOGI(TAG, "BLE Mesh Node initialized");
+
+    return ESP_OK;
+}
+#endif
+
 
 static esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
@@ -659,11 +712,11 @@ static esp_err_t esp_module_root_init(
         return ESP_FAIL;
     }
 
-    /* Open nvs namespace for storing/restoring mesh example info */
-    err = ble_mesh_nvs_open(&NVS_HANDLE);
-    if (err) {
-        return ESP_FAIL;
-    }
+    // /* Open nvs namespace for storing/restoring mesh example info */
+    // err = ble_mesh_nvs_open(&NVS_HANDLE);
+    // if (err) {
+    //     return ESP_FAIL;
+    // }
 
     ble_mesh_get_dev_uuid(dev_uuid);
 

@@ -5,7 +5,8 @@
     "board/esp32c6-bridge.cfg"
   ],
   "files.associations": {
-    "ble_mesh_example_nvs.h": "c"
+    "ble_mesh_example_nvs.h": "c",
+    "random": "c"
   },
   "idf.portWin": "COM7",
   "idf.flashType": "UART"
