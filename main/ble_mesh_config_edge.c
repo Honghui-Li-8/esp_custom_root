@@ -39,7 +39,7 @@ static struct esp_ble_mesh_key {
 #define MSG_ROLE MSG_ROLE_EDGE
 
 static esp_ble_mesh_prov_t provision = {
-    .prov_uuid          = dev_uuid,
+    .uuid = dev_uuid,
 };
 
 static esp_ble_mesh_cfg_srv_t config_server = {
