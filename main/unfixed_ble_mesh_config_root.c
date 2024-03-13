@@ -35,8 +35,26 @@ static struct esp_ble_mesh_key {
 // static nvs_handle_t NVS_HANDLE;
 // static const char * NVS_KEY = NVS_KEY_ROOT;
 
+// ============ only used for root module (provitionor) ============
+#if defined(ROOT_MODULE)
 #define MSG_ROLE MSG_ROLE_ROOT
 
+static esp_ble_mesh_prov_t provision = {
+    .prov_uuid          = dev_uuid,
+    .prov_unicast_addr  = PROV_OWN_ADDR,
+    .prov_start_address = 0x0005,
+};
+
+static esp_ble_mesh_client_t config_client;
+
+#else
+#define MSG_ROLE MSG_ROLE_EDGE
+
+static esp_ble_mesh_prov_t provision = {
+    .prov_uuid          = dev_uuid,
+};
+
+#endif // ======== end of root module (provitionor) only ============
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -52,7 +70,12 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
-static esp_ble_mesh_client_t config_client;
+static esp_ble_mesh_model_t root_models[] = {
+    ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
+#if defined(ROOT_MODULE)
+    ESP_BLE_MESH_MODEL_CFG_CLI(&config_client),
+#endif
+};
 
 static const esp_ble_mesh_client_op_pair_t client_op_pair[] = {
     { ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE },
@@ -63,26 +86,15 @@ static esp_ble_mesh_client_t ecs_193_client = {
     .op_pair = client_op_pair,
 };
 
-static esp_ble_mesh_model_t root_models[] = {
-    ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
-    ESP_BLE_MESH_MODEL_CFG_CLI(&config_client),
-};
-
-
-
-static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECIVED"
+static esp_ble_mesh_model_op_t vnd_op[] = { // custom operation
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE, 2),
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE, 2),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
-static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECIVED"
-    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE, 2),
-    ESP_BLE_MESH_MODEL_OP_END,
-};
-
 static esp_ble_mesh_model_t vnd_models[] = { // custom models
-    ESP_BLE_MESH_VENDOR_MODEL(ECS_193_CID, ECS_193_MODEL_ID_CLIENT, client_op, NULL, &ecs_193_client), 
-    ESP_BLE_MESH_VENDOR_MODEL(ECS_193_CID, ECS_193_MODEL_ID_SERVER, server_op, NULL, NULL),
+    ESP_BLE_MESH_VENDOR_MODEL(ECS_193_CID, ECS_193_MODEL_ID_CLIENT, vnd_op, NULL, &ecs_193_client), 
+    ESP_BLE_MESH_VENDOR_MODEL(ECS_193_CID, ECS_193_MODEL_ID_SERVER, vnd_op, NULL, NULL),
 };
 
 static esp_ble_mesh_model_t *client_model = &vnd_models[0];
@@ -98,12 +110,6 @@ static esp_ble_mesh_comp_t composition = { // composition of current module
     .element_count = ARRAY_SIZE(elements),
 };
 
-static esp_ble_mesh_prov_t provision = {
-    .prov_uuid          = dev_uuid,
-    .prov_unicast_addr  = PROV_OWN_ADDR,
-    .prov_start_address = PROV_START_ADDR,
-};
-
 
 // -------------------- application level callback functions ------------------
 static void (*prov_complete_handler_cb)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) = NULL;
@@ -111,7 +117,8 @@ static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t len
 static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
 
-//-------------------- Network Functions ----------------
+//-------------------- Root module (provitionor) functions ----------------
+#if defined(ROOT_MODULE)
 void printNetworkInfo()
 {
     ESP_LOGW(TAG, "----------- Current Network Info--------------");
@@ -339,13 +346,11 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
         ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
         return ESP_FAIL;
     }
-
-    return ESP_OK;
     // End of Root Module intiate cinfiguration fo edge node
 
 
     // application level callback, let main() know provision is completed
-    prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);  //==================== app level callback
+    prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);
 
     return ESP_OK;
 }
@@ -451,6 +456,55 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
+#else // ------------------ Edge module (Node) functions ------------------
+static esp_err_t prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
+{
+    ble_mesh_key.net_idx = net_idx;
+
+    // application level callback, let main() know provision is completed
+    prov_complete_handler_cb(0, dev_uuid, addr, 0, net_idx);
+
+    return ESP_OK;
+}
+
+static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
+                                             esp_ble_mesh_prov_cb_param_t *param)
+{
+    switch (event) {
+    case ESP_BLE_MESH_PROV_REGISTER_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_PROV_REGISTER_COMP_EVT, err_code %d", param->prov_register_comp.err_code);
+        break;
+    case ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT, err_code %d", param->node_prov_enable_comp.err_code);
+        break;
+    case ESP_BLE_MESH_NODE_PROV_LINK_OPEN_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_LINK_OPEN_EVT, bearer %s",
+            param->node_prov_link_open.bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT");
+        break;
+    case ESP_BLE_MESH_NODE_PROV_LINK_CLOSE_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_LINK_CLOSE_EVT, bearer %s",
+            param->node_prov_link_close.bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT");
+        break;
+    case ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT");
+        prov_complete(param->node_prov_complete.net_idx, param->node_prov_complete.addr,
+            param->node_prov_complete.flags, param->node_prov_complete.iv_index);
+        break;
+    case ESP_BLE_MESH_NODE_PROV_RESET_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_RESET_EVT");
+        break;
+    case ESP_BLE_MESH_NODE_SET_UNPROV_DEV_NAME_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_SET_UNPROV_DEV_NAME_COMP_EVT, err_code %d", param->node_set_unprov_dev_name_comp.err_code);
+        break;
+    default:
+        break;
+    }
+}
+
+#endif //-------------- end of root module (provitionor) only -------------
+
+
+
 static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_ble_mesh_model_cb_param_t *param)
 {
     // static int64_t start_time;
@@ -516,6 +570,9 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
     }
 }
 
+// ========================= our function ==================================
+
+#if defined(ROOT_MODULE)
 static esp_err_t ble_mesh_init(void)
 {
     uint8_t match[2] = { 0x32, 0x10 };
@@ -525,7 +582,9 @@ static esp_err_t ble_mesh_init(void)
     ble_mesh_key.app_idx = APP_KEY_IDX;
     memset(ble_mesh_key.app_key, APP_KEY_OCTET, sizeof(ble_mesh_key.app_key));
 
+    #if defined(ROOT_MODULE)
     esp_ble_mesh_register_config_client_callback(example_ble_mesh_config_client_cb);
+    #endif
     esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);
     esp_ble_mesh_register_custom_model_callback(ble_mesh_custom_model_cb);
 
@@ -563,7 +622,60 @@ static esp_err_t ble_mesh_init(void)
 
     return ESP_OK;
 }
+#else
+static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event, esp_ble_mesh_cfg_server_cb_param_t *param)
+{
+    if (event == ESP_BLE_MESH_CFG_SERVER_STATE_CHANGE_EVT) {
+        switch (param->ctx.recv_op) {
+        case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD");
+            ESP_LOGI(TAG, "net_idx 0x%04x, app_idx 0x%04x",
+                param->value.state_change.appkey_add.net_idx,
+                param->value.state_change.appkey_add.app_idx);
+            ESP_LOG_BUFFER_HEX("AppKey", param->value.state_change.appkey_add.app_key, 16);
+            break;
+        case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND");
+            ESP_LOGI(TAG, "elem_addr 0x%04x, app_idx 0x%04x, cid 0x%04x, mod_id 0x%04x",
+                param->value.state_change.mod_app_bind.element_addr,
+                param->value.state_change.mod_app_bind.app_idx,
+                param->value.state_change.mod_app_bind.company_id,
+                param->value.state_change.mod_app_bind.model_id);
+            break;
+        default:
+            break;
+        }
+    }
+}
 
+static esp_err_t ble_mesh_init(void)
+{
+    esp_err_t err;
+    
+    // ble_mesh_key.net_idx = ESP_BLE_MESH_KEY_PRIMARY;
+    ble_mesh_key.app_idx = APP_KEY_IDX;
+
+    esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);
+    esp_ble_mesh_register_custom_model_callback(ble_mesh_custom_model_cb);
+    esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
+
+    err = esp_ble_mesh_init(&provision, &composition);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize mesh stack");
+        return err;
+    }
+
+    err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to enable mesh node");
+        return err;
+    }
+
+    ESP_LOGI(TAG, "BLE Mesh Node initialized");
+
+    return ESP_OK;
+}
+#endif
 
 
 static esp_err_t esp_module_root_init(
@@ -615,5 +727,59 @@ static esp_err_t esp_module_root_init(
         return ESP_FAIL;
     }
 
+    return ESP_OK;
+}
+
+
+static esp_err_t esp_module_edge_init(
+    void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
+    void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode)
+) {
+    esp_err_t err;
+
+    ESP_LOGI(TAG, "Initializing EDGE Module...");
+
+    // attach application level callback
+    prov_complete_handler_cb = prov_complete_handler;
+    recv_message_handler_cb = recv_message_handler;
+    recv_response_handler_cb = recv_response_handler;
+    timeout_handler_cb = timeout_handler;
+    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL) {
+        ESP_LOGE(TAG, "Appliocation Level Callback functin is NULL");
+        return ESP_FAIL;
+    }
+
+    
+    err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+    err = bluetooth_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp32_bluetooth_init failed (err %d)", err);
+        return ESP_FAIL;
+    }
+
+    // /* Open nvs namespace for storing/restoring mesh example info */
+    // err = ble_mesh_nvs_open(&NVS_HANDLE);
+    // if (err) {
+    //     return ESP_FAIL;
+    // }
+
+    ble_mesh_get_dev_uuid(dev_uuid);
+
+    /* Initialize the Bluetooth Mesh Subsystem */
+    err = ble_mesh_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Done Initializing...");
     return ESP_OK;
 }
