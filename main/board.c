@@ -33,8 +33,9 @@ static void button_tap_cb(void* arg)
         }
     }
     
-    strcpy((char*)data_buffer, "hello world");
-    send_message(5, strlen("hello world") + 1, data_buffer);
+    strcpy((char*)data_buffer, "hello world, this is Root");
+    send_message(5, strlen("hello world, this is Root") + 1, data_buffer);
+    ESP_LOGW(TAG, "<- Sended Message [%s]", (char*)data_buffer);
 }
 
 static void board_button_init(void)
