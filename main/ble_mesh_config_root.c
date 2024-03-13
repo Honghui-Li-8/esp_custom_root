@@ -436,7 +436,13 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
             esp_err_t err = esp_ble_mesh_provisioner_bind_app_key_to_local_model(PROV_OWN_ADDR, ble_mesh_key.app_idx,
                     ECS_193_MODEL_ID_CLIENT, ECS_193_CID);
             if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to bind AppKey to vendor client");
+                ESP_LOGE(TAG, "Failed to bind AppKey to custom client");
+            }
+            err = esp_ble_mesh_provisioner_bind_app_key_to_local_model(PROV_OWN_ADDR, ble_mesh_key.app_idx,
+                    ECS_193_MODEL_ID_SERVER, ECS_193_CID);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to bind AppKey to custom server");
+                return;
             }
         }
         break;
