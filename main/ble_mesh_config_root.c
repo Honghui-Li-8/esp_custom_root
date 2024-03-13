@@ -497,9 +497,9 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
     esp_err_t err;
 
-    ESP_LOGW(TAG, "net_idx: %" PRIu16, ble_mesh_key.net_idx);
-    ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
-    ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
+    // ESP_LOGW(TAG, "net_idx: %" PRIu16, ble_mesh_key.net_idx);
+    // ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
+    // ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
 
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
@@ -519,6 +519,11 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
 {
     uint32_t opcode = ECS_193_MODEL_OP_RESPONSE;
     esp_err_t err;
+
+    // ESP_LOGW(TAG, "response net_idx: %" PRIu16, ctx->net_idx);
+    // ESP_LOGW(TAG, "response app_idx: %" PRIu16, ctx->app_idx);
+    // ESP_LOGW(TAG, "response addr: %" PRIu16, ctx->addr);
+    // ESP_LOGW(TAG, "response recv_dst: %" PRIu16, ctx->recv_dst);
 
     err = esp_ble_mesh_server_model_send_msg(server_model, ctx, opcode, length, data_ptr);
     if (err != ESP_OK) {
