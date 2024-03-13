@@ -479,6 +479,7 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
         timeout_handler_cb(param->client_send_timeout.ctx, param->client_send_timeout. opcode);
         break;
     default:
+        ESP_LOGE(TAG, "Uncaught Event");
         break;
     }
 }
@@ -489,6 +490,10 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     uint32_t opcode = ECS_193_MODEL_OP_MESSAGE;
     esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
     esp_err_t err;
+
+    ESP_LOGW(TAG, "net_idx: %" PRIu16, ble_mesh_key.net_idx);
+    ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
+    ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
 
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
@@ -518,7 +523,7 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
 
 static esp_err_t ble_mesh_init(void)
 {
-    uint8_t match[2] = { 0x32, 0x10 };
+    uint8_t match[2] = INIT_UUID_MATCH;
     esp_err_t err;
 
     ble_mesh_key.net_idx = ESP_BLE_MESH_KEY_PRIMARY;
