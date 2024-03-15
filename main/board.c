@@ -21,31 +21,6 @@
 
 extern void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr);
 
-static void button_tap_cb(void* arg)
-{
-    ESP_LOGW(TAG_W, "button pressed ------------------------- ");
-    static uint8_t *data_buffer = NULL;
-    if (data_buffer == NULL) {
-        data_buffer = (uint8_t*)malloc(128);
-        if (data_buffer == NULL) {
-            printf("Memory allocation failed.\n");
-            return;
-        }
-    }
-    
-    strcpy((char*)data_buffer, "hello world, this is Root");
-    send_message(5, strlen("hello world, this is Root") + 1, data_buffer);
-    ESP_LOGW(TAG_B, "<- Sended Message [%s]", (char*)data_buffer);
-}
-
-static void board_button_init(void)
-{
-    button_handle_t btn_handle = iot_button_create(BUTTON_IO_NUM, BUTTON_ACTIVE_LEVEL);
-    if (btn_handle) {
-        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, button_tap_cb, "RELEASE");
-    }
-}
-
 static void uart_init() {  // Uart ===========================================================
     const int uart_num = UART_NUM;
     const int uart_buffer_size = UART_BUF_SIZE * 2;
@@ -77,6 +52,29 @@ static int uart_sendData(const char* logName, const char* data)
     return txBytes;
 }
 
+static void button_tap_cb(void* arg)
+{
+    ESP_LOGW(TAG_W, "button pressed ------------------------- ");
+    static uint8_t *data_buffer = NULL;
+    if (data_buffer == NULL) {
+        data_buffer = (uint8_t*)malloc(128);
+        if (data_buffer == NULL) {
+            printf("Memory allocation failed.\n");
+            return;
+        }
+    }
+    
+    strcpy((char*)data_buffer, "[CMD] This is root writing to serial port\n");
+    uart_sendData(TAG_B, (char*) data_buffer);
+}
+
+static void board_button_init(void)
+{
+    button_handle_t btn_handle = iot_button_create(BUTTON_IO_NUM, BUTTON_ACTIVE_LEVEL);
+    if (btn_handle) {
+        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, button_tap_cb, "RELEASE");
+    }
+}
 
 void board_init(void)
 {
