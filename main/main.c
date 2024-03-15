@@ -64,6 +64,7 @@ static void execute_command(char* command) {
         esp_log_level_set(TAG_ALL, ESP_LOG_WARN);
         esp_log_level_set(TAG_ALL, ESP_LOG_INFO);
         esp_log_level_set(TAG_ALL, ESP_LOG_DEBUG);
+        esp_log_level_set(TAG_ALL, ESP_LOG_VERBOSE);
         uart_sendData(TAG_M, "[UART] Turning on all Log's from esp_log\n");
     }
     else if (strncmp(command, "SEND", 4) == 0) {
