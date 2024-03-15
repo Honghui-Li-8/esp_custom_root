@@ -20,7 +20,6 @@
 #define BUTTON_ACTIVE_LEVEL     0
 
 extern void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr);
-extern void printNetworkInfo();
 
 static void button_tap_cb(void* arg)
 {

@@ -50,7 +50,10 @@ static void execute_command(char* command) {
         return;
     }
 
-    if (strncmp(command, "SEND", 4) == 0) {
+    if (strncmp(command, "INFO", 4) == 0) {
+        printNetworkInfo();
+    }
+    else if (strncmp(command, "SEND", 4) == 0) {
         ESP_LOGI(TAG_E, "executing [SEND]");
         char spliter[] = "-";
         char *address_start = command + 4 + strlen(spliter);
