@@ -492,7 +492,6 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
 
 void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
 {
-    ESP_LOGW(TAG, "send message called");
     esp_ble_mesh_msg_ctx_t ctx = {0};
     uint32_t opcode = ECS_193_MODEL_OP_MESSAGE;
     esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
@@ -507,7 +506,7 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     node = esp_ble_mesh_provisioner_get_node_with_addr(dst_address);
     if (node == NULL)
     {
-        ESP_LOGE(TAG, "Node 0x%04x not exists", dst_address);
+        ESP_LOGE(TAG, "Node 0x%04x not exists in network", dst_address);
         return;
     }
 

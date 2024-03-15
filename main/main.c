@@ -41,7 +41,6 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
     
 }
 
-
 static void execute_command(char* command) {
     ESP_LOGW(TAG_M, "execute_command called");
     static const char *TAG_E = "EXE";
@@ -52,7 +51,7 @@ static void execute_command(char* command) {
     }
 
     if (strncmp(command, "SEND", 4) == 0) {
-        ESP_LOGW(TAG_E, "executing [SEND]");
+        ESP_LOGI(TAG_E, "executing [SEND]");
         char spliter[] = "-";
         char *address_start = command + 4 + strlen(spliter);
         char *data_start = strstr(address_start, spliter);
@@ -75,16 +74,16 @@ static void execute_command(char* command) {
         addr_str[addr_len] = '\0';
 
         int addr = atoi(addr_str);
-        ESP_LOGW(TAG_E, "Sending message to address-%d ...", addr);
+        ESP_LOGI(TAG_E, "Sending message to address-%d ...", addr);
         send_message(addr, strlen(data_start), (uint8_t *) data_start);
-        ESP_LOGW(TAG_E, "Sended [%s] to %d", data_start, addr);
+        ESP_LOGI(TAG_E, "Sended [%s] to %d", data_start, addr);
     }
     else {
         ESP_LOGE(TAG_E, "Command not Vaild");
     }
 
     
-    ESP_LOGW(TAG_E, "Command [%s] executed", command);
+    ESP_LOGI(TAG_E, "Command [%s] executed", command);
 }
 
 static void uart_task_handler(char *data) {
