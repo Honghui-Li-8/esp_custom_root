@@ -44,7 +44,7 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 }
 
 static void execute_command(char* command) {
-    ESP_LOGW(TAG_M, "execute_command called");
+    ESP_LOGI(TAG_M, "execute_command called");
     static const char *TAG_E = "EXE";
 
     if (strlen(command) < 6) {
@@ -93,7 +93,7 @@ static void execute_command(char* command) {
         int addr = atoi(addr_str);
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", addr);
         send_message(addr, strlen(data_start), (uint8_t *) data_start);
-        ESP_LOGI(TAG_E, "Sended [%s] to %d", data_start, addr);
+        ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*)data_start);
     }
     else {
         ESP_LOGE(TAG_E, "Command not Vaild");

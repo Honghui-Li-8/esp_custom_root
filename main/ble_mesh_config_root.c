@@ -522,8 +522,7 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
         return;
     }
 
-    ESP_LOGW(TAG, "Message [%s] sended to [0x%04x]", (char*) data_ptr, dst_address);
-
+    // ESP_LOGW(TAG, "Message [%s] sended to [0x%04x]", (char*) data_ptr, dst_address);
 }
 
 
