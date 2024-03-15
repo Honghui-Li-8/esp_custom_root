@@ -2,8 +2,10 @@
 #include "ble_mesh_config_root.c"
 #include <string.h>
 #include <stdlib.h>
+#include "esp_log.h"
 
 #define TAG_M "MAIN"
+#define TAG_ALL "*"
 
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) {
     ESP_LOGI(TAG_M, " ----------- prov_complete handler trigered -----------");
@@ -52,6 +54,17 @@ static void execute_command(char* command) {
 
     if (strncmp(command, "INFO", 4) == 0) {
         printNetworkInfo();
+    }
+    else if (strncmp(command, "LOGOF", 5) == 0) {
+        esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+        uart_sendData(TAG_M, "[UART] Turning off all Log's from esp_log\n");
+    }
+    else if (strncmp(command, "LOGON", 5) == 0) {
+        esp_log_level_set(TAG_ALL, ESP_LOG_ERROR);
+        esp_log_level_set(TAG_ALL, ESP_LOG_WARN);
+        esp_log_level_set(TAG_ALL, ESP_LOG_INFO);
+        esp_log_level_set(TAG_ALL, ESP_LOG_DEBUG);
+        uart_sendData(TAG_M, "[UART] Turning on all Log's from esp_log\n");
     }
     else if (strncmp(command, "SEND", 4) == 0) {
         ESP_LOGI(TAG_E, "executing [SEND]");

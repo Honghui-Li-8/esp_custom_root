@@ -44,7 +44,7 @@ static void uart_init() {  // Uart =============================================
     ESP_LOGI(TAG_B, "Uart init done");
 }
 
-static int uart_sendData(const char* logName, const char* data)
+int uart_sendData(const char* logName, const char* data)
 {
     const int len = strlen(data);
     const int txBytes = uart_write_bytes(UART_NUM, data, len);
