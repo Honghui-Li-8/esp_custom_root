@@ -1,5 +1,7 @@
 #include "board.h"
 #include "ble_mesh_config_root.c"
+#include <string.h>
+#include <stdlib.h>
 
 #define TAG_M "MAIN"
 
@@ -40,6 +42,86 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 }
 
 
+static void execute_command(char* command) {
+    ESP_LOGW(TAG_M, "execute_command called");
+    static const char *TAG_E = "EXE";
+
+    if (strlen(command) < 6) {
+        ESP_LOGE(TAG_E, "Command [%s] too short", command);
+        return;
+    }
+
+    if (strncmp(command, "SEND", 4) == 0) {
+        ESP_LOGW(TAG_E, "executing [SEND]");
+        char spliter[] = "-";
+        char *address_start = command + 4 + strlen(spliter);
+        char *data_start = strstr(address_start, spliter);
+        if (data_start == NULL) {
+            ESP_LOGE(TAG_E, "No send data found");
+            return;
+        }
+        data_start = data_start + strlen(spliter); // pass the spliter
+
+        int max_addr_len = 3;
+        int addr_len = data_start - address_start - 1;
+        if (addr_len > max_addr_len) {
+            // address too long
+            ESP_LOGE(TAG_E, "Address is too long");
+            return;
+        }
+
+        char addr_str[max_addr_len + 1]; // Ensure enough space for the string and null terminator
+        strncpy(addr_str, address_start, addr_len);
+        addr_str[addr_len] = '\0';
+
+        int addr = atoi(addr_str);
+        ESP_LOGW(TAG_E, "Sending message to address-%d ...", addr);
+        send_message(addr, strlen(data_start), (uint8_t *) data_start);
+        ESP_LOGW(TAG_E, "Sended [%s] to %d", data_start, addr);
+    }
+    else {
+        ESP_LOGE(TAG_E, "Command not Vaild");
+    }
+
+    
+    ESP_LOGW(TAG_E, "Command [%s] executed", command);
+}
+
+static void uart_task_handler(char *data) {
+    ESP_LOGW(TAG_M, "uart_task_handler called ------------------");
+
+    const char delimiter[] = "\n";
+    char *command;
+    
+    command = strtok(data, delimiter);
+    while (command != NULL) {
+        // printf("Executing: [%s]\n", command);
+        execute_command(command);
+
+        // get next command
+        command = strtok(NULL, delimiter);
+    }
+}
+
+static void rx_task(void *arg)
+{
+    static const char *RX_TASK_TAG = "RX";
+    esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
+    uint8_t* data = (uint8_t*) malloc(UART_BUF_SIZE + 1);
+    ESP_LOGW(RX_TASK_TAG, "rx_task called ------------------");
+
+    while (1) {
+        const int rxBytes = uart_read_bytes(UART_NUM, data, UART_BUF_SIZE, 1000 / portTICK_PERIOD_MS);
+        if (rxBytes > 0) {
+            data[rxBytes] = 0; // mark end of string
+            ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
+
+            uart_task_handler((char*) data);
+        }
+    }
+    free(data);
+}
+
 void app_main(void)
 {
     esp_err_t err;
@@ -55,8 +137,11 @@ void app_main(void)
         return;
     }
 
-
     
     board_init();
+
+    xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
+    ESP_LOGI(TAG, "done uart_rx_task");
+
     ESP_LOGI(TAG, " ----------- app_main done -----------");
 }

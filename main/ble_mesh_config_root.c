@@ -492,6 +492,7 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
 
 void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
 {
+    ESP_LOGW(TAG, "send message called");
     esp_ble_mesh_msg_ctx_t ctx = {0};
     uint32_t opcode = ECS_193_MODEL_OP_MESSAGE;
     esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
@@ -500,6 +501,15 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     // ESP_LOGW(TAG, "net_idx: %" PRIu16, ble_mesh_key.net_idx);
     // ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
     // ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
+
+    // check if node is in network
+    esp_ble_mesh_node_t *node = NULL;
+    node = esp_ble_mesh_provisioner_get_node_with_addr(dst_address);
+    if (node == NULL)
+    {
+        ESP_LOGE(TAG, "Node 0x%04x not exists", dst_address);
+        return;
+    }
 
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
@@ -512,6 +522,9 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
         ESP_LOGE(TAG, "Failed to send message to node addr 0x%04x", dst_address);
         return;
     }
+
+    ESP_LOGW(TAG, "Message [%s] sended to [0x%04x]", (char*) data_ptr, dst_address);
+
 }
 
 
