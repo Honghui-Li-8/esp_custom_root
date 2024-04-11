@@ -39,15 +39,18 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
     
 }
 
+static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+    ESP_LOGI(TAG_M, "Broadcast happened\n");
+}
 
 void app_main(void)
 {
     esp_err_t err;
 
 #if defined(ROOT_MODULE)
-    err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
+    err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler);
 #else
-    err = esp_module_edge_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
+    err = esp_module_edge_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler);
 #endif
 
     if (err != ESP_OK) {

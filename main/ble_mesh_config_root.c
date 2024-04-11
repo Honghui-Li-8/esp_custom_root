@@ -62,6 +62,7 @@ static esp_ble_mesh_model_t root_models[] = {
 
 static const esp_ble_mesh_client_op_pair_t client_op_pair[] = {
     { ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE },
+    { ECS_193_MODEL_OP_BROADCAST, NULL },
 };
 
 static esp_ble_mesh_client_t ecs_193_client = {
@@ -70,13 +71,15 @@ static esp_ble_mesh_client_t ecs_193_client = {
 };
 
 
-static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECIVED"
+static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECEIVED"
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE, 2),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 2),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
-static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECIVED"
+static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECEIVED"
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE, 2),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 2),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -110,6 +113,7 @@ static void (*prov_complete_handler_cb)(uint16_t node_index, const esp_ble_mesh_
 static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
+static void (*broadcast_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 
 //-------------------- Network Functions ----------------
 void printNetworkInfo()
@@ -467,6 +471,8 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
             recv_message_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
         } else if (param->model_operation.opcode == ECS_193_MODEL_OP_RESPONSE) {
             recv_response_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
+        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_BROADCAST) {
+            broadcast_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
         }
         break;
     case ESP_BLE_MESH_MODEL_SEND_COMP_EVT:
@@ -478,6 +484,7 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
         ESP_LOGI(TAG, "Send opcode [0x%06" PRIx32 "] completed", param->model_send_comp.opcode);
         break;
     case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
+
         ESP_LOGI(TAG, "Receive publish message 0x%06" PRIx32, param->client_recv_publish_msg.opcode);
         break;
     case ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT:
@@ -586,7 +593,8 @@ static esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
     void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
-    void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode)
+    void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode),
+    void (*broadcast_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
 ) {
     esp_err_t err;
 
@@ -597,7 +605,9 @@ static esp_err_t esp_module_root_init(
     recv_message_handler_cb = recv_message_handler;
     recv_response_handler_cb = recv_response_handler;
     timeout_handler_cb = timeout_handler;
-    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL) {
+    broadcast_handler_cb = broadcast_handler;
+    
+    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL || broadcast_handler_cb == NULL) {
         ESP_LOGE(TAG, "Appliocation Level Callback functin is NULL");
         return ESP_FAIL;
     }
