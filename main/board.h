@@ -7,9 +7,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "driver/uart.h"
+#include "driver/gpio.h"
+
 #ifndef _BOARD_H_
 #define _BOARD_H_
 
+#define UART_NUM_C6 UART_NUM_0
+#define TX_PIN_C6 16
+#define RX_PIN_C6 17
+#define RTS_PIN_C6 2
+#define CTS_PIN_C6 3
+
+#define UART_NUM    UART_NUM_C6
+#define TXD_PIN     TX_PIN_C6
+#define RXD_PIN     RX_PIN_C6
+#define RTS_PIN     UART_PIN_NO_CHANGE // not using
+#define CTS_PIN     UART_PIN_NO_CHANGE // not using
+#define UART_BAUD_RATE 115200
+#define UART_BUF_SIZE 1024
+
 void board_init(void);
+int uart_sendData(const char* logName, const char* data);
 
 #endif /* _BOARD_H_ */

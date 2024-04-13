@@ -73,7 +73,6 @@ static esp_ble_mesh_client_t ecs_193_client = {
 
 static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECEIVED"
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE, 2),
-    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 2),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -508,6 +507,15 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     // ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
     // ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
 
+    // check if node is in network
+    esp_ble_mesh_node_t *node = NULL;
+    node = esp_ble_mesh_provisioner_get_node_with_addr(dst_address);
+    if (node == NULL)
+    {
+        ESP_LOGE(TAG, "Node 0x%04x not exists in network", dst_address);
+        return;
+    }
+
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
     ctx.addr = dst_address;
@@ -517,6 +525,32 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, true, message_role);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send message to node addr 0x%04x", dst_address);
+        return;
+    }
+
+    // ESP_LOGW(TAG, "Message [%s] sended to [0x%04x]", (char*) data_ptr, dst_address);
+}
+
+void send_broadcast(uint16_t length, uint8_t *data_ptr)
+{
+    esp_ble_mesh_msg_ctx_t ctx = {0};
+    uint32_t opcode = ECS_193_MODEL_OP_BROADCAST;
+    esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
+    esp_err_t err = ESP_OK;
+
+    // ESP_LOGW(TAG, "net_idx: %" PRIu16, ble_mesh_key.net_idx);
+    // ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
+    // ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
+
+    ctx.net_idx = ble_mesh_key.net_idx;
+    ctx.app_idx = ble_mesh_key.app_idx;
+    ctx.addr = 0xFFFF;
+    ctx.send_ttl = MSG_SEND_TTL;
+    
+
+    err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, true, message_role);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send message to node addr 0xFFFF, err_code %d", err);
         return;
     }
 }

@@ -40,7 +40,9 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 }
 
 static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
-    ESP_LOGI(TAG_M, "Broadcast happened\n");
+    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");
+    
+    return ;
 }
 
 void app_main(void)
