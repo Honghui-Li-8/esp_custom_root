@@ -7,7 +7,12 @@
   "files.associations": {
     "ble_mesh_example_nvs.h": "c",
     "random": "c",
-    "nvs_flash.h": "c"
+    "nvs_flash.h": "c",
+    "esp_ble_mesh_provisioning_api.h": "c",
+    "inttypes.h": "c",
+    "chrono": "c",
+    "ble_mesh_fast_prov_client_model.h": "c",
+    "ble_mesh_fast_prov_operation.h": "c"
   },
   "idf.portWin": "COM8",
   "idf.flashType": "UART"
