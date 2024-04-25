@@ -231,20 +231,22 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
 {
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_set_state_t set = {0};
-    example_node_info_t *node = NULL;
-    esp_err_t err;
+    example_node_info_t *node_fp = NULL;
+    esp_ble_mesh_node_t *node = NULL; //not sure if this is needed or not
 
-    node = example_get_node_info(param->params->ctx.addr);
-    if (!node) {
-        ESP_LOGE(TAG, "%s: Failed to get node info", __func__);
-        return;
-    }
+    esp_err_t err;
 
     ESP_LOGI(TAG, "Config client, err_code %d, event %u, addr 0x%04x, opcode 0x%04" PRIx32,
         param->error_code, event, param->params->ctx.addr, param->params->opcode);
 
     if (param->error_code) {
         ESP_LOGE(TAG, "Send config client message failed, opcode 0x%04" PRIx32, param->params->opcode);
+        return;
+    }
+
+    node_fp = example_get_node_info(param->params->ctx.addr);
+    if (!node_fp) {
+        ESP_LOGE(TAG, "%s: Failed to get node_fp info", __func__);
         return;
     }
 
@@ -269,7 +271,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
                 break;
             }
 
-            ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD); //this is a warning since node parameter is a difference types than the local node.
+            ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
             set.app_key_add.net_idx = ble_mesh_key.net_idx;
             set.app_key_add.app_idx = ble_mesh_key.app_idx;
             memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
@@ -283,28 +285,28 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         switch (param->params->opcode) {
         case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD: {
             example_fast_prov_info_set_t set = {0};
-            if (!node->reprov || !ESP_BLE_MESH_ADDR_IS_UNICAST(node->unicast_min)) {
+            if (!node_fp->reprov || !ESP_BLE_MESH_ADDR_IS_UNICAST(node_fp->unicast_min)) {
                 /* If the node is a new one or the node is re-provisioned but the information of the node
                  * has not been set before, here we will set the Fast Prov Info Set info to the node.
                  */
-                node->node_addr_cnt = prov_info.node_addr_cnt;
-                node->unicast_min   = prov_info.unicast_min;
-                node->unicast_max   = prov_info.unicast_max;
-                node->flags         = provision.flags;
-                node->iv_index      = provision.iv_index;
-                node->fp_net_idx    = prov_info.net_idx;
-                node->group_addr    = prov_info.group_addr;
-                node->match_len     = prov_info.match_len;
-                memcpy(node->match_val, prov_info.match_val, prov_info.match_len);
-                node->action        = 0x81;
+                node_fp->node_addr_cnt = prov_info.node_addr_cnt;
+                node_fp->unicast_min   = prov_info.unicast_min;
+                node_fp->unicast_max   = prov_info.unicast_max;
+                node_fp->flags         = provision.flags;
+                node_fp->iv_index      = provision.iv_index;
+                node_fp->fp_net_idx    = prov_info.net_idx;
+                node_fp->group_addr    = prov_info.group_addr;
+                node_fp->match_len     = prov_info.match_len;
+                memcpy(node_fp->match_val, prov_info.match_val, prov_info.match_len);
+                node_fp->action        = 0x81;
             }
             set.ctx_flags = 0x037F;
-            memcpy(&set.node_addr_cnt, &node->node_addr_cnt,
+            memcpy(&set.node_addr_cnt, &node_fp->node_addr_cnt,
                     sizeof(example_node_info_t) - offsetof(example_node_info_t, node_addr_cnt));
             example_msg_common_info_t info = {
-                .net_idx = node->net_idx,
-                .app_idx = node->app_idx,
-                .dst = node->unicast_addr,
+                .net_idx = node_fp->net_idx,
+                .app_idx = node_fp->app_idx,
+                .dst = node_fp->unicast_addr,
                 .timeout = 0,
             #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
                             .role = ROLE_PROVISIONER,
@@ -331,9 +333,9 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         switch (param->params->opcode) {
         case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD: {
             example_msg_common_info_t info = {
-                .net_idx = node->net_idx,
-                .app_idx = node->app_idx,
-                .dst = node->unicast_addr,
+                .net_idx = node_fp->net_idx,
+                .app_idx = node_fp->app_idx,
+                .dst = node_fp->unicast_addr,
                 .timeout = 0,
             #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
                 .role = ROLE_PROVISIONER,
@@ -367,7 +369,8 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
     // Root Module only, intiate configuration of edge node
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_get_state_t get = {0};
-    esp_ble_mesh_node_t *node = NULL;
+    // esp_ble_mesh_node_t *node = NULL;
+    example_node_info_t *node_fp = NULL;
     char name[10] = {'\0'};
     esp_err_t err;
 
@@ -382,22 +385,58 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
         return ESP_FAIL;
     }
 
-    node = esp_ble_mesh_provisioner_get_node_with_addr(primary_addr);
-    if (node == NULL) {
-        ESP_LOGE(TAG, "Failed to get node 0x%04x info", primary_addr);
-        return ESP_FAIL;
+    // node = esp_ble_mesh_provisioner_get_node_with_addr(primary_addr);
+    // if (node == NULL) {
+    //     ESP_LOGE(TAG, "Failed to get node 0x%04x info", primary_addr);
+    //     return ESP_FAIL;
+    // }
+
+    // ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
+    // get.comp_data_get.page = COMP_DATA_PAGE_0;
+    // err = esp_ble_mesh_config_client_get_state(&common, &get);
+    // if (err != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
+    //     return ESP_FAIL;
+    // }
+
+    /* Sets node info */
+    err = example_store_node_info(uuid, primary_addr, element_num, prov_info.net_idx,
+                                  prov_info.app_idx, LED_OFF);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Failed to set node info", __func__);
+        return;
     }
 
-    ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
-    get.comp_data_get.page = COMP_DATA_PAGE_0;
-    err = esp_ble_mesh_config_client_get_state(&common, &get);
+    /* Gets node info */
+    node_fp = example_get_node_info(primary_addr);
+    if (!node_fp) {
+        ESP_LOGE(TAG, "%s: Failed to get node info", __func__);
+        return;
+    }
+
+    /* The Provisioner will send Config AppKey Add to the node. */
+    example_msg_common_info_t info = {
+        .net_idx = node_fp->net_idx,
+        .app_idx = node_fp->app_idx,
+        .dst = node_fp->unicast_addr,
+        .timeout = 0,
+    #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
+            .role = ROLE_PROVISIONER,
+    #endif
+    };
+    esp_ble_mesh_cfg_app_key_add_t add_key = {
+        .net_idx = prov_info.net_idx,
+        .app_idx = prov_info.app_idx,
+    };
+    memcpy(add_key.app_key, prov_info.app_key, 16);
+    err = example_send_config_appkey_add(config_client.model, &info, &add_key);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
-        return ESP_FAIL;
+        ESP_LOGE(TAG, "%s: Failed to send Config AppKey Add message", __func__);
+        return;
     }
 
     return ESP_OK;
-    // End of Root Module intiate cinfiguration fo edge node
+    // End of Root Module intiate cinfiguration of edge node
 
 
     // application level callback, let main() know provision is completed
@@ -411,29 +450,46 @@ static void recv_unprov_adv_pkt(uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN], uint
                                 uint8_t adv_type, esp_ble_mesh_prov_bearer_t bearer)
 {
     esp_ble_mesh_unprov_dev_add_t add_dev = {0};
+    esp_ble_mesh_dev_add_flag_t flag;
     esp_err_t err;
+    bool reprov;
 
-    /* Due to the API esp_ble_mesh_provisioner_set_dev_uuid_match, Provisioner will only
-     * use this callback to report the devices, whose device UUID starts with 0xdd & 0xdd,
-     * to the application layer.
-     */
+    if (bearer & ESP_BLE_MESH_PROV_ADV) {
+        /* Checks if the device has been provisioned previously. If the device
+         * is a re-provisioned one, we will ignore the 'max_node_num' count and
+         * start to provision it directly.
+         */
+        reprov = example_is_node_exist(dev_uuid);
+        if (reprov) {
+            goto add;
+        }
 
-    ESP_LOG_BUFFER_HEX("Device address", addr, BD_ADDR_LEN);
-    ESP_LOGI(TAG, "Address type 0x%02x, adv type 0x%02x", addr_type, adv_type);
-    ESP_LOG_BUFFER_HEX("Device UUID", dev_uuid, ESP_BLE_MESH_OCTET16_LEN);
-    ESP_LOGI(TAG, "oob info 0x%04x, bearer %s", oob_info, (bearer & ESP_BLE_MESH_PROV_ADV) ? "PB-ADV" : "PB-GATT");
+        if (prov_info.max_node_num == 0) {
+            return;
+        }
 
-    memcpy(add_dev.addr, addr, BD_ADDR_LEN);
-    add_dev.addr_type = (uint8_t)addr_type;
-    memcpy(add_dev.uuid, dev_uuid, ESP_BLE_MESH_OCTET16_LEN);
-    add_dev.oob_info = oob_info;
-    add_dev.bearer = (uint8_t)bearer;
-    /* Note: If unprovisioned device adv packets have not been received, we should not add
-             device with ADD_DEV_START_PROV_NOW_FLAG set. */
-    err = esp_ble_mesh_provisioner_add_unprov_dev(&add_dev,
-            ADD_DEV_RM_AFTER_PROV_FLAG | ADD_DEV_START_PROV_NOW_FLAG | ADD_DEV_FLUSHABLE_DEV_FLAG);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to start provisioning device");
+        ESP_LOGI(TAG, "address:  %s, address type: %d, adv type: %d", bt_hex(addr, 6), addr_type, adv_type);
+        ESP_LOGI(TAG, "dev uuid: %s", bt_hex(dev_uuid, 16));
+        ESP_LOGI(TAG, "oob info: %d, bearer: %s", oob_info, (bearer & ESP_BLE_MESH_PROV_ADV) ? "PB-ADV" : "PB-GATT");
+
+add:
+        memcpy(add_dev.addr, addr, 6);
+        add_dev.addr_type = (uint8_t)addr_type;
+        memcpy(add_dev.uuid, dev_uuid, 16);
+        add_dev.oob_info = oob_info;
+        add_dev.bearer = (uint8_t)bearer;
+        flag = ADD_DEV_RM_AFTER_PROV_FLAG | ADD_DEV_START_PROV_NOW_FLAG | ADD_DEV_FLUSHABLE_DEV_FLAG;
+        err = esp_ble_mesh_provisioner_add_unprov_dev(&add_dev, flag);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "%s: Failed to start provisioning a device", __func__);
+            return;
+        }
+
+        if (!reprov) {
+            if (prov_info.max_node_num) {
+                prov_info.max_node_num--;
+            }
+        }
     }
 }
 
