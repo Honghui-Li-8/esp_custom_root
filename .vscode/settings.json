@@ -2,12 +2,13 @@
   "C_Cpp.intelliSenseEngine": "default",
   "idf.adapterTargetName": "esp32c6",
   "idf.openOcdConfigs": [
-    "board/esp32c6-bridge.cfg"
+    "board/esp32c6-builtin.cfg"
   ],
   "files.associations": {
     "ble_mesh_example_nvs.h": "c",
     "random": "c"
   },
   "idf.portWin": "COM7",
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "idf.port": "/dev/ttyACM1"
 }

@@ -46,6 +46,14 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 static void execute_command(char* command) {
     ESP_LOGI(TAG_M, "execute_command called");
     static const char *TAG_E = "EXE";
+    static uint8_t *data_buffer = NULL;
+    if (data_buffer == NULL) {
+        data_buffer = (uint8_t*)malloc(128);
+        if (data_buffer == NULL) {
+            printf("Memory allocation failed.\n");
+            return;
+        }
+    }
 
     if (strlen(command) < 6) {
         ESP_LOGE(TAG_E, "Command [%s] too short", command);
@@ -94,6 +102,11 @@ static void execute_command(char* command) {
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", addr);
         send_message(addr, strlen(data_start), (uint8_t *) data_start);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*)data_start);
+    }
+    else if (strncmp(command, "[GET]", 5) == 0) {
+        strcpy((char*) data_buffer, command);
+        strcpy((char*) data_buffer + strlen(command), "-ESP confirm recived from uart-");
+        uart_sendData("[test]", (char*)data_buffer);
     }
     else {
         ESP_LOGE(TAG_E, "Command not Vaild");
