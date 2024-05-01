@@ -169,9 +169,12 @@ void app_main(void)
 
     
     board_init();
-
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
-    ESP_LOGI(TAG, "done uart_rx_task");
 
+    // turn off log
+    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    uart_sendData(TAG_M, "[UART] Turning off all Log's from esp_log\n");
+
+    ESP_LOGI(TAG, "done uart_rx_task");
     ESP_LOGI(TAG, " ----------- app_main done -----------");
 }
