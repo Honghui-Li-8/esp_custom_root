@@ -104,8 +104,9 @@ static void execute_command(char* command) {
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*)data_start);
     }
     else if (strncmp(command, "[GET]", 5) == 0) {
+        ESP_LOGW(TAG_M, "recived [GET] command");
         strcpy((char*) data_buffer, command);
-        strcpy((char*) data_buffer + strlen(command), "-ESP confirm recived from uart-");
+        strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
         uart_sendData("[test]", (char*)data_buffer);
     }
     else {
