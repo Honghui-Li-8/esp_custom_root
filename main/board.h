@@ -27,6 +27,9 @@
 #define UART_BAUD_RATE 115200
 #define UART_BUF_SIZE 1024
 
+#define LED_ON  1
+#define LED_OFF 0
+
 void board_init(void);
 int uart_sendData(const char* logName, const char* data);
 

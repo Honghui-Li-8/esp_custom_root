@@ -22,6 +22,7 @@
 #include "ble_mesh_example_init.h"
 #include "ble_mesh_example_nvs.h"
 
+#include "board.h"
 #include "../Secret/NetworkConfig.h"
 
 
@@ -41,6 +42,11 @@ static struct esp_ble_mesh_key {
 
 #define MSG_ROLE MSG_ROLE_ROOT
 
+static const esp_ble_mesh_client_op_pair_t fast_prov_cli_op_pair[] = {
+    { ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_INFO_SET,         ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_INFO_STATUS         },
+    { ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NET_KEY_ADD,      ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NET_KEY_STATUS      },
+    { ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_ADDR_GET,    ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_ADDR_STATUS    },
+};
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -55,17 +61,17 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .net_transmit = ESP_BLE_MESH_TRANSMIT(2, 20),
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
-
-static const esp_ble_mesh_client_op_pair_t fast_prov_cli_op_pair[] = {
-    { ECS_193_MODEL_OP_FP_INFO_SET, ECS_193_MODEL_OP_FP_INFO_STATUS      },
-    { ECS_193_MODEL_OP_FP_NET_KEY_ADD,   ECS_193_MODEL_OP_FP_NET_KEY_STATUS   },
-    { ECS_193_MODEL_OP_FP_NODE_ADDR_GET, ECS_193_MODEL_OP_FP_NODE_ADDR_STATUS },
-};
-
-static esp_ble_mesh_client_t config_client;
+esp_ble_mesh_client_t config_client;
 esp_ble_mesh_client_t fast_prov_client = {
     .op_pair_size = ARRAY_SIZE(fast_prov_cli_op_pair),
     .op_pair = fast_prov_cli_op_pair,
+};
+
+static esp_ble_mesh_model_op_t fast_prov_cli_op[] = {
+    ESP_BLE_MESH_MODEL_OP(ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_INFO_STATUS,      1),
+    ESP_BLE_MESH_MODEL_OP(ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NET_KEY_STATUS,   2),
+    ESP_BLE_MESH_MODEL_OP(ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_ADDR_STATUS, 2),
+    ESP_BLE_MESH_MODEL_OP_END,
 };
 
 static esp_ble_mesh_model_t root_models[] = {
@@ -96,12 +102,13 @@ static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECEIVE
 };
 
 static esp_ble_mesh_model_t vnd_models[] = { // custom models
+    ESP_BLE_MESH_VENDOR_MODEL(CID_ESP, ESP_BLE_MESH_VND_MODEL_ID_FAST_PROV_CLI, fast_prov_cli_op, NULL, &fast_prov_client),
     ESP_BLE_MESH_VENDOR_MODEL(ECS_193_CID, ECS_193_MODEL_ID_CLIENT, client_op, NULL, &ecs_193_client), 
     ESP_BLE_MESH_VENDOR_MODEL(ECS_193_CID, ECS_193_MODEL_ID_SERVER, server_op, NULL, NULL),
 };
 
-static esp_ble_mesh_model_t *client_model = &vnd_models[0];
-static esp_ble_mesh_model_t *server_model = &vnd_models[1];
+static esp_ble_mesh_model_t *client_model = &vnd_models[1];
+static esp_ble_mesh_model_t *server_model = &vnd_models[2];
 
 static esp_ble_mesh_elem_t elements[] = {
     ESP_BLE_MESH_ELEMENT(0, root_models, vnd_models),
@@ -239,14 +246,14 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
     ESP_LOGI(TAG, "Config client, err_code %d, event %u, addr 0x%04x, opcode 0x%04" PRIx32,
         param->error_code, event, param->params->ctx.addr, param->params->opcode);
 
-    if (param->error_code) {
-        ESP_LOGE(TAG, "Send config client message failed, opcode 0x%04" PRIx32, param->params->opcode);
-        return;
-    }
-
     node_fp = example_get_node_info(param->params->ctx.addr);
     if (!node_fp) {
         ESP_LOGE(TAG, "%s: Failed to get node_fp info", __func__);
+        return;
+    }
+
+    if (param->error_code) { //check this
+        ESP_LOGE(TAG, "Send config client message failed, opcode 0x%04" PRIx32, param->params->opcode);
         return;
     }
 
@@ -284,6 +291,14 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
     case ESP_BLE_MESH_CFG_CLIENT_SET_STATE_EVT:
         switch (param->params->opcode) {
         case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD: {
+
+            ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
+            set.model_app_bind.element_addr = node->unicast_addr;
+            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
+            set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
+            set.model_app_bind.company_id = ECS_193_CID;
+            err = esp_ble_mesh_config_client_set_state(&common, &set);
+
             example_fast_prov_info_set_t set = {0};
             if (!node_fp->reprov || !ESP_BLE_MESH_ADDR_IS_UNICAST(node_fp->unicast_min)) {
                 /* If the node is a new one or the node is re-provisioned but the information of the node
@@ -308,11 +323,11 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
                 .app_idx = node_fp->app_idx,
                 .dst = node_fp->unicast_addr,
                 .timeout = 0,
-            #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
-                            .role = ROLE_PROVISIONER,
-            #endif
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
+    .role = ROLE_PROVISIONER,
+#endif
             };
-            err = example_send_fast_prov_info_set(fast_prov_client.model, &info, &set);
+            err = example_send_fast_prov_info_set(fast_prov_client.model, &info, &set); //check this
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "%s: Failed to set Fast Prov Info Set message", __func__);
                 return;
@@ -331,6 +346,16 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         break;
     case ESP_BLE_MESH_CFG_CLIENT_TIMEOUT_EVT:
         switch (param->params->opcode) {
+        case ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET: {
+            esp_ble_mesh_cfg_client_get_state_t get = {0};
+            ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
+            get.comp_data_get.page = COMP_DATA_PAGE_0;
+            err = esp_ble_mesh_config_client_get_state(&common, &get);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
+            }
+            break;
+        }
         case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD: {
             example_msg_common_info_t info = {
                 .net_idx = node_fp->net_idx,
@@ -369,7 +394,7 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
     // Root Module only, intiate configuration of edge node
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_get_state_t get = {0};
-    // esp_ble_mesh_node_t *node = NULL;
+    esp_ble_mesh_node_t *node = NULL;
     example_node_info_t *node_fp = NULL;
     char name[10] = {'\0'};
     esp_err_t err;
@@ -385,33 +410,33 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
         return ESP_FAIL;
     }
 
-    // node = esp_ble_mesh_provisioner_get_node_with_addr(primary_addr);
-    // if (node == NULL) {
-    //     ESP_LOGE(TAG, "Failed to get node 0x%04x info", primary_addr);
-    //     return ESP_FAIL;
-    // }
+    node = esp_ble_mesh_provisioner_get_node_with_addr(primary_addr);
+    if (node == NULL) {
+        ESP_LOGE(TAG, "Failed to get node 0x%04x info", primary_addr);
+        return ESP_FAIL;
+    }
 
-    // ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
-    // get.comp_data_get.page = COMP_DATA_PAGE_0;
-    // err = esp_ble_mesh_config_client_get_state(&common, &get);
-    // if (err != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
-    //     return ESP_FAIL;
-    // }
+    ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
+    get.comp_data_get.page = COMP_DATA_PAGE_0;
+    err = esp_ble_mesh_config_client_get_state(&common, &get);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
+        return ESP_FAIL;
+    }
 
     /* Sets node info */
     err = example_store_node_info(uuid, primary_addr, element_num, prov_info.net_idx,
                                   prov_info.app_idx, LED_OFF);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: Failed to set node info", __func__);
-        return;
+        return ESP_FAIL;
     }
 
     /* Gets node info */
     node_fp = example_get_node_info(primary_addr);
     if (!node_fp) {
         ESP_LOGE(TAG, "%s: Failed to get node info", __func__);
-        return;
+        return ESP_FAIL;
     }
 
     /* The Provisioner will send Config AppKey Add to the node. */
@@ -432,7 +457,7 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
     err = example_send_config_appkey_add(config_client.model, &info, &add_key);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: Failed to send Config AppKey Add message", __func__);
-        return;
+        return ESP_FAIL;
     }
 
     return ESP_OK;
@@ -581,9 +606,9 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
             recv_response_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
         } else if (param->model_operation.opcode == ECS_193_MODEL_OP_BROADCAST) {
             broadcast_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
-        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_FP_INFO_STATUS || 
-                    param->model_operation.opcode == ECS_193_MODEL_OP_FP_NET_KEY_STATUS || 
-                    param->model_operation.opcode == ECS_193_MODEL_OP_FP_NODE_ADDR_STATUS) {
+        } else if (param->model_operation.opcode == ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_INFO_STATUS || 
+                    param->model_operation.opcode == ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NET_KEY_STATUS || 
+                    param->model_operation.opcode == ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_ADDR_STATUS) {
             ESP_LOGI(TAG, "%s: Fast Prov Client Model receives status, opcode 0x%04" PRIx32, __func__, param->model_operation.opcode);
             esp_err_t err = example_fast_prov_client_recv_status(param->model_operation.model,
                     param->model_operation.ctx,
@@ -704,6 +729,11 @@ static esp_err_t ble_mesh_init(void)
     ble_mesh_key.app_idx = APP_KEY_IDX;
     memset(ble_mesh_key.app_key, APP_KEY_OCTET, sizeof(ble_mesh_key.app_key));
 
+    prov_info.unicast_min = provision.prov_start_address + prov_info.max_node_num;
+    prov_info.match_len   = sizeof(match);
+    memcpy(prov_info.match_val, match, sizeof(match));
+    memset(prov_info.app_key, APP_KEY_OCTET, sizeof(prov_info.app_key));
+
     esp_ble_mesh_register_config_client_callback(example_ble_mesh_config_client_cb);
     esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);
     esp_ble_mesh_register_custom_model_callback(ble_mesh_custom_model_cb);
@@ -714,7 +744,19 @@ static esp_err_t ble_mesh_init(void)
         return err;
     }
 
+    err = esp_ble_mesh_provisioner_set_dev_uuid_match(match, 0x02, 0x00, false);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Failed to set matching device UUID", __func__);
+        return ESP_FAIL;
+    }
+
     err = esp_ble_mesh_client_model_init(&vnd_models[0]);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Failed to initialize fast prov client model", __func__);
+        return ESP_FAIL;
+    }
+
+    err = esp_ble_mesh_client_model_init(&vnd_models[1]);
     if (err) {
         ESP_LOGE(TAG, "Failed to initialize vendor client");
         return err;
@@ -728,8 +770,14 @@ static esp_err_t ble_mesh_init(void)
 
     err = esp_ble_mesh_provisioner_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to enable mesh provisioner");
-        return err;
+        ESP_LOGE(TAG, "%s: Failed to enable provisioning", __func__);
+        return ESP_FAIL;
+    }
+
+    err = esp_ble_mesh_provisioner_add_local_app_key(prov_info.app_key, prov_info.net_idx, prov_info.app_idx);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Failed to add local application key", __func__);
+        return ESP_FAIL;
     }
 
     err = esp_ble_mesh_provisioner_add_local_app_key(ble_mesh_key.app_key, ble_mesh_key.net_idx, ble_mesh_key.app_idx);
