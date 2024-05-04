@@ -32,6 +32,7 @@
 #define UART_BUF_SIZE 1024
 
 void board_init(void);
-int uart_sendData(const char* logName, const char* data);
+int uart_sendData(const char* logName, const char* data, size_t length);
+int uart_sendMsg(const char* logName, const char* msg);
 
 #endif /* _BOARD_H_ */

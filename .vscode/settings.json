@@ -6,7 +6,13 @@
   ],
   "files.associations": {
     "ble_mesh_example_nvs.h": "c",
-    "random": "c"
+    "random": "c",
+    "bitset": "c",
+    "string_view": "c",
+    "regex": "c",
+    "array": "c",
+    "string": "c",
+    "span": "c"
   },
   "idf.portWin": "COM7",
   "idf.flashType": "UART",

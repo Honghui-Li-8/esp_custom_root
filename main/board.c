@@ -44,11 +44,22 @@ static void uart_init() {  // Uart =============================================
     ESP_LOGI(TAG_B, "Uart init done");
 }
 
-int uart_sendData(const char* logName, const char* data)
+int uart_sendData(const char* logName, const char* data, size_t length)
 {
-    const int len = strlen(data);
-    const int txBytes = uart_write_bytes(UART_NUM, data, len);
-    ESP_LOGI(logName, "Wrote %d bytes on uart-tx", txBytes);
+    const int txBytes = uart_write_bytes(UART_NUM, data, length);
+    if (logName != NULL) {
+        ESP_LOGI(logName, "Wrote %d bytes on uart-tx", txBytes);
+    }
+    return txBytes;
+}
+
+int uart_sendMsg(const char* logName, const char* msg)
+{
+    size_t length = strlen(msg);
+    const int txBytes = uart_write_bytes(UART_NUM, msg, length);
+    if (logName != NULL) {
+        ESP_LOGI(logName, "Wrote %d bytes on uart-tx", txBytes);
+    }
     return txBytes;
 }
 

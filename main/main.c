@@ -24,12 +24,32 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
             return;
         }
     }
-    
-    strcpy((char*)data_buffer, "hello Edge, my code seems working fine");
-    uint16_t response_length = strlen("hello Edge, my code seems working fine") + 1;
 
-    send_response(ctx, response_length, data_buffer);
-    ESP_LOGW(TAG_M, "<- Sended Response [%s]", (char*)data_buffer);
+    // recived a ble-message from edge ndoe - TB Finish
+    //  - leave all the task hadling logic to app level (python server)
+    //  - when recived ble-message, pass it directly to net-server
+    //  - if there is sepcial case in future, add if/switch case here
+    // ========== potential special case ==========
+    u_int16_t node_addr = ctx->addr;
+    if (strncmp(msg_ptr, "Special Case", 1) == 0) {
+        // Data update on node
+        // hadle locally
+        return;
+    } else if ((msg_ptr, "Ehco Test", 1) == 0){
+        
+        strcpy((char*)data_buffer, "hello Edge, my code seems working fine");
+        uint16_t response_length = strlen("hello Edge, my code seems working fine") + 1;
+
+        send_response(ctx, response_length, data_buffer);
+        ESP_LOGW(TAG_M, "<- Sended Response [%s]", (char*)data_buffer);
+    }
+
+
+    // ========== Data update cases ==========
+    // ========== Edge Request cases ==========
+    // TB Finish
+    // pass data to network server through uart
+    uart_sendData(NULL, msg_ptr, length);
 }
 
 static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
@@ -65,7 +85,7 @@ static void execute_command(char* command) {
     }
     else if (strncmp(command, "LOGOF", 5) == 0) {
         esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-        uart_sendData(TAG_M, "[UART] Turning off all Log's from esp_log\n");
+        uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
     }
     else if (strncmp(command, "LOGON", 5) == 0) {
         esp_log_level_set(TAG_ALL, ESP_LOG_ERROR);
@@ -73,7 +93,7 @@ static void execute_command(char* command) {
         esp_log_level_set(TAG_ALL, ESP_LOG_INFO);
         esp_log_level_set(TAG_ALL, ESP_LOG_DEBUG);
         esp_log_level_set(TAG_ALL, ESP_LOG_VERBOSE);
-        uart_sendData(TAG_M, "[UART] Turning on all Log's from esp_log\n");
+        uart_sendMsg(TAG_M, "[UART] Turning on all Log's from esp_log\n");
     }
     else if (strncmp(command, "SEND", 4) == 0) {
         ESP_LOGI(TAG_E, "executing [SEND]");
@@ -103,11 +123,11 @@ static void execute_command(char* command) {
         send_message(addr, strlen(data_start), (uint8_t *) data_start);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*)data_start);
     }
-    else if (strncmp(command, "[GET]", 5) == 0) {
-        ESP_LOGW(TAG_M, "recived [GET] command");
+    else if (strncmp(command, "Test-", 5) == 0) {
+        ESP_LOGW(TAG_M, "recived \"Test-\"command");
         strcpy((char*) data_buffer, command);
         strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
-        uart_sendData("[test]", (char*)data_buffer);
+        uart_sendMsg("[test]", (char*)data_buffer);
     }
     else {
         ESP_LOGE(TAG_E, "Command not Vaild");
@@ -173,7 +193,7 @@ void app_main(void)
 
     // turn off log
     esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-    uart_sendData(TAG_M, "[UART] Turning off all Log's from esp_log\n");
+    uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
 
     ESP_LOGI(TAG, "done uart_rx_task");
     ESP_LOGI(TAG, " ----------- app_main done -----------");
