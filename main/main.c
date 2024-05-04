@@ -47,9 +47,9 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
 
     // ========== Data update cases ==========
     // ========== Edge Request cases ==========
-    // TB Finish
     // pass data to network server through uart
     uart_sendData(NULL, msg_ptr, length);
+    // TB Finish, any other thing need to be done in network level?
 }
 
 static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
