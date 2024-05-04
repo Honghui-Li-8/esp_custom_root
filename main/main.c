@@ -75,14 +75,36 @@ static void execute_command(char* command) {
         }
     }
 
-    if (strlen(command) < 6) {
+    // ============= process and execute commands from net server (from uart) ==================
+    // uart command format
+    // TB Finish, TB Complete
+    if (strlen(command) < 5) {
         ESP_LOGE(TAG_E, "Command [%s] too short", command);
         return;
     }
+    const size_t CMD_LEN = 5;
+    const size_t ADDR_LEN = 2;
+    const size_t MSG_SIZE_NUM_LEN = 1;
 
-    if (strncmp(command, "INFO", 4) == 0) {
+    // ====== core commands ====== 
+    if (strncmp(command, "INFO-", 5) == 0) {
         printNetworkInfo();
+    } else if (strncmp(command, "SEND-", 5) == 0) {
+        ESP_LOGI(TAG_E, "executing [SEND]");
+        char *address_start = command + CMD_LEN;
+        char *msg_len_start = address_start + ADDR_LEN;
+        char *msg_start = msg_len_start + MSG_SIZE_NUM_LEN;
+
+        uint16_t node_addr = (uint16_t)((address_start[0] << 8) | address_start[1]);
+        size_t msg_length = (size_t)msg_len_start[0];
+
+        ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
+        send_message(node_addr, msg_length, (uint8_t *) msg_start);
+        ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*) msg_start);
     }
+
+
+    // ====== other dev/debug use command ====== 
     else if (strncmp(command, "LOGOF", 5) == 0) {
         esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
         uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
@@ -94,42 +116,13 @@ static void execute_command(char* command) {
         esp_log_level_set(TAG_ALL, ESP_LOG_DEBUG);
         esp_log_level_set(TAG_ALL, ESP_LOG_VERBOSE);
         uart_sendMsg(TAG_M, "[UART] Turning on all Log's from esp_log\n");
-    }
-    else if (strncmp(command, "SEND", 4) == 0) {
-        ESP_LOGI(TAG_E, "executing [SEND]");
-        char spliter[] = "-";
-        char *address_start = command + 4 + strlen(spliter);
-        char *data_start = strstr(address_start, spliter);
-        if (data_start == NULL) {
-            ESP_LOGE(TAG_E, "No send data found");
-            return;
-        }
-        data_start = data_start + strlen(spliter); // pass the spliter
-
-        int max_addr_len = 3;
-        int addr_len = data_start - address_start - 1;
-        if (addr_len > max_addr_len) {
-            // address too long
-            ESP_LOGE(TAG_E, "Address is too long");
-            return;
-        }
-
-        char addr_str[max_addr_len + 1]; // Ensure enough space for the string and null terminator
-        strncpy(addr_str, address_start, addr_len);
-        addr_str[addr_len] = '\0';
-
-        int addr = atoi(addr_str);
-        ESP_LOGI(TAG_E, "Sending message to address-%d ...", addr);
-        send_message(addr, strlen(data_start), (uint8_t *) data_start);
-        ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*)data_start);
-    }
-    else if (strncmp(command, "Test-", 5) == 0) {
-        ESP_LOGW(TAG_M, "recived \"Test-\"command");
+    } else if (strncmp(command, "ECHO-", 5) == 0) {
+        // echo test
+        ESP_LOGW(TAG_M, "recived \"ECHO-\"command");
         strcpy((char*) data_buffer, command);
         strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
-        uart_sendMsg("[test]", (char*)data_buffer);
-    }
-    else {
+        uart_sendMsg("[ECHO]", (char*)data_buffer);
+    } else {
         ESP_LOGE(TAG_E, "Command not Vaild");
     }
 
