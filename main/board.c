@@ -44,7 +44,7 @@ static void uart_init() {  // Uart =============================================
     ESP_LOGI(TAG_B, "Uart init done");
 }
 
-int uart_sendData(const char* logName, const char* data, size_t length)
+int uart_sendData(const char* logName, const uint8_t* data, size_t length)
 {
     const int txBytes = uart_write_bytes(UART_NUM, data, length);
     if (logName != NULL) {
@@ -76,7 +76,7 @@ static void button_tap_cb(void* arg)
     }
     
     strcpy((char*)data_buffer, "[CMD] This is root writing to serial port\n");
-    uart_sendData(TAG_B, (char*) data_buffer);
+    uart_sendMsg(TAG_B, (char*) data_buffer);
 }
 
 static void board_button_init(void)

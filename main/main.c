@@ -14,7 +14,8 @@ static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet1
 
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     // ESP_LOGI(TAG_M, " ----------- recv_message handler trigered -----------");
-    ESP_LOGW(TAG_M, "-> Recived Message [%s]", (char*)msg_ptr);
+    u_int16_t node_addr = ctx->addr;
+    ESP_LOGW(TAG_M, "-> Recived Message [%s] from %d", (char*)msg_ptr, node_addr);
 
     static uint8_t *data_buffer = NULL;
     if (data_buffer == NULL) {
@@ -30,12 +31,11 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     //  - when recived ble-message, pass it directly to net-server
     //  - if there is sepcial case in future, add if/switch case here
     // ========== potential special case ==========
-    u_int16_t node_addr = ctx->addr;
-    if (strncmp(msg_ptr, "Special Case", 1) == 0) {
+    if (strncmp((char*)msg_ptr, "Special Case", 1) == 0) {
         // Data update on node
         // hadle locally
         return;
-    } else if ((msg_ptr, "Ehco Test", 1) == 0){
+    } else if (strncmp((char*)msg_ptr, "Ehco Test", 1) == 0){
         
         strcpy((char*)data_buffer, "hello Edge, my code seems working fine");
         uint16_t response_length = strlen("hello Edge, my code seems working fine") + 1;
@@ -43,7 +43,6 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
         send_response(ctx, response_length, data_buffer);
         ESP_LOGW(TAG_M, "<- Sended Response [%s]", (char*)data_buffer);
     }
-
 
     // ========== Data update cases ==========
     // ========== Edge Request cases ==========
@@ -63,7 +62,7 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
     
 }
 
-static void execute_command(char* command) {
+static void execute_uart_command(char* command, size_t cmd_len) {
     ESP_LOGI(TAG_M, "execute_command called");
     static const char *TAG_E = "EXE";
     static uint8_t *data_buffer = NULL;
@@ -127,23 +126,38 @@ static void execute_command(char* command) {
     }
 
     
-    ESP_LOGI(TAG_E, "Command [%s] executed", command);
+    ESP_LOGI(TAG_E, "Command [%.*s] executed", cmd_len, command);
 }
 
 static void uart_task_handler(char *data) {
     ESP_LOGW(TAG_M, "uart_task_handler called ------------------");
 
-    const char delimiter[] = "\n";
-    char *command;
-    
-    command = strtok(data, delimiter);
-    while (command != NULL) {
-        // printf("Executing: [%s]\n", command);
-        execute_command(command);
+    const char delimiter[] = END_OF_MSG; // end of message delimiter, defined in networkConfig
+    int cmd_start = 0;
+    int cmd_end = 0;
+    int cmd_len = 0;
 
-        // get next command
-        command = strtok(NULL, delimiter);
+    for (int i = 0; i < UART_BUF_SIZE - strlen(delimiter); i++) {
+        if (strncmp(data + i, delimiter, strlen(delimiter)) == 0) {
+            // located end of message
+            cmd_end = i;
+            cmd_len = cmd_end - cmd_start;
+            execute_uart_command(data + cmd_start, cmd_len);
+            cmd_start += strlen(delimiter);
+        }
     }
+
+    // const char delimiter[] = "\n";
+    // char *command;
+    
+    // command = strtok(data, delimiter);
+    // while (command != NULL) {
+    //     // printf("Executing: [%s]\n", command);
+    //     execute_command(command);
+
+    //     // get next command
+    //     command = strtok(NULL, delimiter);
+    // }
 }
 
 static void rx_task(void *arg)
@@ -167,27 +181,18 @@ static void rx_task(void *arg)
 
 void app_main(void)
 {
-    esp_err_t err;
-
-#if defined(ROOT_MODULE)
-    err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
-#else
-    err = esp_module_edge_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
-#endif
-
+    // turn off log
+    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    // uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
+    
+    esp_err_t err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
     if (err != ESP_OK) {
         ESP_LOGE(TAG_M, "Network Module Initialization failed (err %d)", err);
         return;
     }
 
-    
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
-    // turn off log
-    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-    uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
-
-    ESP_LOGI(TAG, "done uart_rx_task");
     ESP_LOGI(TAG, " ----------- app_main done -----------");
 }
