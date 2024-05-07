@@ -14,7 +14,7 @@
     "string": "c",
     "span": "c"
   },
-  "idf.portWin": "COM8",
+  "idf.portWin": "COM13",
   "idf.flashType": "UART",
   "idf.port": "/dev/ttyUSB0"
 }

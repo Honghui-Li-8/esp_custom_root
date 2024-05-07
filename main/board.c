@@ -44,9 +44,15 @@ static void uart_init() {  // Uart =============================================
     ESP_LOGI(TAG_B, "Uart init done");
 }
 
+int uart_sendEndOfMsg() {
+    return uart_write_bytes(UART_NUM, END_OF_MSG, strlen(END_OF_MSG)); // end of message symbol
+}
+
 int uart_sendData(const char* logName, const uint8_t* data, size_t length)
 {
-    const int txBytes = uart_write_bytes(UART_NUM, data, length);
+    int txBytes = uart_write_bytes(UART_NUM, data, length);
+    txBytes += uart_sendEndOfMsg(); // end of message symbol
+
     if (logName != NULL) {
         ESP_LOGI(logName, "Wrote %d bytes on uart-tx", txBytes);
     }
@@ -56,7 +62,9 @@ int uart_sendData(const char* logName, const uint8_t* data, size_t length)
 int uart_sendMsg(const char* logName, const char* msg)
 {
     size_t length = strlen(msg);
-    const int txBytes = uart_write_bytes(UART_NUM, msg, length);
+    int txBytes = uart_write_bytes(UART_NUM, msg, length);
+    txBytes += uart_sendEndOfMsg(); // end of message symbol
+
     if (logName != NULL) {
         ESP_LOGI(logName, "Wrote %d bytes on uart-tx", txBytes);
     }
@@ -75,7 +83,7 @@ static void button_tap_cb(void* arg)
         }
     }
     
-    strcpy((char*)data_buffer, "[CMD] This is root writing to serial port\n");
+    strcpy((char*)data_buffer, "[CMD]root write serial\n");
     uart_sendMsg(TAG_B, (char*) data_buffer);
 }
 

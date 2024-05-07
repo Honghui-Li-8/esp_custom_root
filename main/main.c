@@ -15,7 +15,7 @@ static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet1
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     // ESP_LOGI(TAG_M, " ----------- recv_message handler trigered -----------");
     u_int16_t node_addr = ctx->addr;
-    ESP_LOGW(TAG_M, "-> Recived Message [%s] from %d", (char*)msg_ptr, node_addr);
+    ESP_LOGW(TAG_M, "-> Recived Message \'%s\' from node-%d", (char*)msg_ptr, node_addr);
 
     static uint8_t *data_buffer = NULL;
     if (data_buffer == NULL) {
@@ -35,25 +35,37 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
         // Data update on node
         // hadle locally
         return;
-    } else if (strncmp((char*)msg_ptr, "Ehco Test", 1) == 0){
+    }
+    
+    // cases for testing
+    if (strncmp((char*)msg_ptr, "Ehco Test", 1) == 0){
         
         strcpy((char*)data_buffer, "hello Edge, my code seems working fine");
         uint16_t response_length = strlen("hello Edge, my code seems working fine") + 1;
 
         send_response(ctx, response_length, data_buffer);
-        ESP_LOGW(TAG_M, "<- Sended Response [%s]", (char*)data_buffer);
+        ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*)data_buffer);
+        return;
     }
 
     // ========== Data update cases ==========
     // ========== Edge Request cases ==========
     // pass data to network server through uart
+    uart_sendData(NULL, &node_addr, 2);
     uart_sendData(NULL, msg_ptr, length);
     // TB Finish, any other thing need to be done in network level?
+
+    // send response to conirm recive
+    strcpy((char*)data_buffer, "ACK");
+    uint16_t response_length = strlen("ACK");
+
+    send_response(ctx, response_length, data_buffer);
+    ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*)data_buffer);
 }
 
 static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     // ESP_LOGI(TAG_M, " ----------- recv_response handler trigered -----------");
-    ESP_LOGW(TAG_M, "-> Recived Response [%s]", (char*)msg_ptr);
+    ESP_LOGW(TAG_M, "-> Recived Response \'%s\'", (char*)msg_ptr);
 
 }
 
@@ -181,9 +193,11 @@ static void rx_task(void *arg)
 
 void app_main(void)
 {
-    // turn off log
-    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-    // uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
+    // turn off log - important, bc the server counting on '[E]' as end of message instaed of '\0'
+    //              - since the message from uart carries data
+    //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
+    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    uart_sendMsg(TAG_M, "[Ignore_prev][UART] Turning off all Log's from esp_log\n");
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
     if (err != ESP_OK) {
@@ -193,6 +207,6 @@ void app_main(void)
 
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
-
-    ESP_LOGI(TAG, " ----------- app_main done -----------");
+    
+    uart_sendMsg(TAG_M, "[Ignore_prev][UART] ----------- app_main done -----------\n");
 }
