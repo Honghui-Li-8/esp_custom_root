@@ -9,6 +9,7 @@
 
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) {
     ESP_LOGI(TAG_M, " ----------- prov_complete handler trigered -----------");
+    uart_sendMsg(NULL,  " ----------- prov_complete -----------");
 
 }
 
