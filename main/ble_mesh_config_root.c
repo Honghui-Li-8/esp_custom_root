@@ -28,9 +28,6 @@
 #define TAG_INFO "Net_Info"
 
 //maybe i'll move it to networkConfig.h
-// #define MSG_SEND_TTL        3
-// #define MSG_TIMEOUT         0
-#define MSG_ROLE            ROLE_PROVISIONER
 #define COMP_DATA_1_OCTET(msg, offset)      (msg[offset])
 #define COMP_DATA_2_OCTET(msg, offset)      (msg[offset + 1] << 8 | msg[offset])
 
@@ -238,14 +235,10 @@ static esp_ble_mesh_node_info_t *example_ble_mesh_get_node_info(uint16_t unicast
 }
 
 
-static void ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,
+static esp_err_t ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,
                                             uint16_t unicast,
                                             esp_ble_mesh_model_t *model, uint32_t opcode)
 {
-    if (!common || !unicast || !model) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
     common->opcode = opcode;
     common->model = model;
     common->ctx.net_idx = ble_mesh_key.net_idx;
@@ -256,6 +249,7 @@ static void ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
     common->msg_role = MSG_ROLE_ROOT;
 #endif
+    return ESP_OK;
 }
 
 static void prov_link_open(esp_ble_mesh_prov_bearer_t bearer)
@@ -281,7 +275,7 @@ void example_ble_mesh_send_remote_provisioning_scan_start(void)
     }
 
     /* Send a ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET to get the scan status of remote provisioning server */
-    example_ble_mesh_set_msg_common(&common, remote_rpr_srv_addr, remote_prov_client.model, ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET);
+    ble_mesh_set_msg_common(&common, remote_rpr_srv_addr, remote_prov_client.model, ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET);
     err = esp_ble_mesh_rpr_client_send(&common, NULL);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send Remote Provisioning Client msg: Scan Get");
@@ -388,7 +382,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
 {
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_set_state_t set = {0};
-    esp_ble_mesh_node_t *node = NULL;
+    esp_ble_mesh_node_info_t *node = NULL;
     esp_err_t err;
 
     ESP_LOGI(TAG, "Config client, err_code %d, event %u, addr 0x%04x, opcode 0x%04" PRIx32,
@@ -432,8 +426,8 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
         break;
     case ESP_BLE_MESH_CFG_CLIENT_SET_STATE_EVT:
         if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD) {
-            ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
-            set.model_app_bind.element_addr = node->unicast_addr;
+            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
+            set.model_app_bind.element_addr = node->unicast;
             set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
             set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
             set.model_app_bind.company_id = ECS_193_CID;
@@ -500,7 +494,7 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
     // Root Module only, intiate configuration of edge node
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_get_state_t get = {0};
-    esp_ble_mesh_node_t *node = NULL;
+    esp_ble_mesh_node_info_t *node = NULL;
     char name[10] = {'\0'};
     esp_err_t err;
 
@@ -602,12 +596,10 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
         ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_PROV_DISABLE_COMP_EVT, err_code %d", param->provisioner_prov_disable_comp.err_code);
         break;
     case ESP_BLE_MESH_PROVISIONER_PROV_LINK_OPEN_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_PROV_LINK_OPEN_EVT, bearer %s",
-            param->provisioner_prov_link_open.bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT");
+        prov_link_open(param->provisioner_prov_link_open.bearer);
         break;
     case ESP_BLE_MESH_PROVISIONER_PROV_LINK_CLOSE_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_PROV_LINK_CLOSE_EVT, bearer %s, reason 0x%02x",
-            param->provisioner_prov_link_close.bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT", param->provisioner_prov_link_close.reason);
+        prov_link_close(param->provisioner_prov_link_close.bearer, param->provisioner_prov_link_close.reason);
         break;
     case ESP_BLE_MESH_PROVISIONER_ADD_UNPROV_DEV_COMP_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_ADD_UNPROV_DEV_COMP_EVT, err_code %d", param->provisioner_add_unprov_dev_comp.err_code);
@@ -703,12 +695,12 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
         break;
     case ESP_BLE_MESH_RPR_CLIENT_SEND_TIMEOUT_EVT:
         ESP_LOGW(TAG, "Remote Prov Client Send Timeout, opcode 0x%04x, to 0x%04x",
-                 param->send.params->opcode, param->send.params->ctx.addr);
+                    (unsigned int) param->send.params->opcode, (unsigned int) param->send.params->ctx.addr);
         break;
     case ESP_BLE_MESH_RPR_CLIENT_RECV_PUB_EVT:
     case ESP_BLE_MESH_RPR_CLIENT_RECV_RSP_EVT:
         ESP_LOGW(TAG, "Remote Prov Client Recv RSP, opcode 0x%04x, from 0x%04x",
-                 param->recv.params->ctx.recv_op, param->recv.params->ctx.addr);
+                    (unsigned int) param->recv.params->ctx.recv_op, (unsigned int) param->recv.params->ctx.addr);
         switch (param->recv.params->ctx.recv_op) {
         case ESP_BLE_MESH_MODEL_OP_RPR_SCAN_CAPS_STATUS:
             break;
@@ -728,7 +720,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
                          *  start scan process.
                          */
                         case ESP_BLE_MESH_RPR_SCAN_IDLE: {
-                            err = example_ble_mesh_set_msg_common(&common, addr, remote_prov_client.model,
+                            err = ble_mesh_set_msg_common(&common, addr, remote_prov_client.model,
                                                                     ESP_BLE_MESH_MODEL_OP_RPR_SCAN_START);
                             if (err != ESP_OK) {
                                 ESP_LOGE(TAG, "Set message common fail:%d", __LINE__);
@@ -774,7 +766,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
             ESP_LOGI(TAG, "scan_report, rssi %ddBm", param->recv.val.scan_report.rssi);
             ESP_LOG_BUFFER_HEX(TAG": scan_report, uuid", param->recv.val.scan_report.uuid, 16);
             ESP_LOGI(TAG, "scan_report, oob_info 0x%04x", param->recv.val.scan_report.oob_info);
-            ESP_LOGI(TAG, "scan_report, uri_hash 0x%08x", param->recv.val.scan_report.uri_hash);
+            ESP_LOGI(TAG, "scan_report, uri_hash 0x%08x", (unsigned int) param->recv.val.scan_report.uri_hash);
 
             if (param->recv.val.scan_report.uuid[0] != remote_dev_uuid_match[0] ||
                 param->recv.val.scan_report.uuid[1] != remote_dev_uuid_match[1]) {
@@ -785,7 +777,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
             memcpy(remote_dev_uuid, param->recv.val.scan_report.uuid, 16);
 
             /* Send ESP_BLE_MESH_MODEL_OP_RPR_LINK_GET to remote provisioning server get link status */
-            err = example_ble_mesh_set_msg_common(&common, addr, remote_prov_client.model
+            err = ble_mesh_set_msg_common(&common, addr, remote_prov_client.model
                                         , ESP_BLE_MESH_MODEL_OP_RPR_LINK_GET);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Set message common fail:%d", __LINE__);
@@ -814,7 +806,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
                          *  Link status is idle, send ESP_BLE_MESH_MODEL_OP_RPR_LINK_OPEN
                          *  to remote provisioning server to open prov link
                          */
-                        err = example_ble_mesh_set_msg_common(&common, addr, remote_prov_client.model
+                        err = ble_mesh_set_msg_common(&common, addr, remote_prov_client.model
                                                     , ESP_BLE_MESH_MODEL_OP_RPR_LINK_OPEN);
                         if (err != ESP_OK) {
                             ESP_LOGE(TAG, "Set message common fail:%d", __LINE__);
@@ -889,7 +881,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
                         break;
                     }
                 } else {
-                    ESP_LOGW(TAG, "Remote Provisioning Server(addr: 0x%04x) Link open fail");
+                    ESP_LOGW(TAG, "Remote Provisioning Server(addr: 0x%04x) Link open fail", addr);
                 }
                 break;
             }
@@ -950,7 +942,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
         ESP_LOGI(TAG, "Node addr: 0x%04x", param->prov.unicast_addr);
         ESP_LOGI(TAG, "Node element num: 0x%04x", param->prov.element_num);
         ESP_LOG_BUFFER_HEX(TAG": Node UUID: ", param->prov.uuid, 16);
-        err = example_ble_mesh_set_msg_common(&common, param->prov.rpr_srv_addr, remote_prov_client.model,
+        err = ble_mesh_set_msg_common(&common, param->prov.rpr_srv_addr, remote_prov_client.model,
                                               ESP_BLE_MESH_MODEL_OP_RPR_LINK_CLOSE);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Set message common fail:%d", __LINE__);
