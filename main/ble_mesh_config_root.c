@@ -406,13 +406,13 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
                     param->status_cb.comp_data_status.composition_data->len));
             example_ble_mesh_parse_node_comp_data(node, param->status_cb.comp_data_status.composition_data->data,
                                                         param->status_cb.comp_data_status.composition_data->len);
-            // err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
-            //     param->status_cb.comp_data_status.composition_data->data,
-            //     param->status_cb.comp_data_status.composition_data->len);
-            // if (err != ESP_OK) {
-            //     ESP_LOGE(TAG, "Failed to store node composition data");
-            //     break;
-            // }
+            err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
+                param->status_cb.comp_data_status.composition_data->data,
+                param->status_cb.comp_data_status.composition_data->len);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to store node composition data");
+                break;
+            }
 
             ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
             set.app_key_add.net_idx = ble_mesh_key.net_idx;
@@ -436,6 +436,8 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
                 ESP_LOGE(TAG, "Failed to send Config Model App Bind");
             }
         } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND) {
+            ESP_LOGI(TAG, "The Remote Provisioning Server have been provisioned, You could click button to start remote provisioning");
+            remote_rpr_srv_addr = param->params->ctx.addr;
             ESP_LOGW(TAG, "%s, Provision and config successfully", __func__);
         }
         break;
@@ -521,6 +523,9 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
         return ESP_FAIL;
     }
 
+    ESP_LOGI(TAG, "Provisioning node by common method");
+    ESP_LOGI(TAG, "That node will be act as remote provisioning server to help Provisioner to provisioning another node");
+
     ble_mesh_set_msg_common(&common, primary_addr, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
     get.comp_data_get.page = COMP_DATA_PAGE_0;
     err = esp_ble_mesh_config_client_get_state(&common, &get);
@@ -534,7 +539,7 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
 
 
     // application level callback, let main() know provision is completed
-    prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);  //==================== app level callback
+    // prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);  //==================== app level callback
 
     return ESP_OK;
 }
@@ -1023,7 +1028,6 @@ void send_broadcast(uint16_t length, uint8_t *data_ptr)
     }
 }
 
-
 void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_ptr)
 {
     uint32_t opcode = ECS_193_MODEL_OP_RESPONSE;
@@ -1114,7 +1118,6 @@ static esp_err_t esp_module_root_init(
         ESP_LOGE(TAG, "Appliocation Level Callback functin is NULL");
         return ESP_FAIL;
     }
-
     
     err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
