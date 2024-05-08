@@ -1,14 +1,14 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
-  "idf.adapterTargetName": "esp32c6",
+  "idf.adapterTargetName": "esp32h2",
   "idf.openOcdConfigs": [
-    "board/esp32c6-builtin.cfg"
+    "board/esp32h2-builtin.cfg"
   ],
   "files.associations": {
     "ble_mesh_example_nvs.h": "c",
     "random": "c",
     "nvs_flash.h": "c"
   },
-  "idf.portWin": "COM8",
+  "idf.portWin": "COM11",
   "idf.flashType": "UART"
 }

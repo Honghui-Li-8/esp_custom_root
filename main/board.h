@@ -13,15 +13,23 @@
 #ifndef _BOARD_H_
 #define _BOARD_H_
 
-#define UART_NUM_C6 UART_NUM_0
-#define TX_PIN_C6 16
-#define RX_PIN_C6 17
-#define RTS_PIN_C6 2
-#define CTS_PIN_C6 3
+// #define UART_NUM_C6 UART_NUM_0
+// #define TX_PIN_C6 16
+// #define RX_PIN_C6 17
+// #define RTS_PIN_C6 2
+// #define CTS_PIN_C6 3
+// #define UART_NUM    UART_NUM_C6
+// #define TXD_PIN     TX_PIN_C6
+// #define RXD_PIN     RX_PIN_C6
 
-#define UART_NUM    UART_NUM_C6
-#define TXD_PIN     TX_PIN_C6
-#define RXD_PIN     RX_PIN_C6
+#define UART_NUM_H2 UART_NUM_0
+#define TX_PIN_H2 24
+#define RX_PIN_H2 23
+
+#define UART_NUM    UART_NUM_H2
+#define TXD_PIN     TX_PIN_H2
+#define RXD_PIN     RX_PIN_H2
+
 #define RTS_PIN     UART_PIN_NO_CHANGE // not using
 #define CTS_PIN     UART_PIN_NO_CHANGE // not using
 #define UART_BAUD_RATE 115200
