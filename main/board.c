@@ -59,6 +59,16 @@ int uart_sendData(const char* logName, const uint8_t* data, size_t length)
     return txBytes;
 }
 
+// will not put end_of_message terminator, only wrties the buffer data
+int uart_write(const char* logName, const uint8_t* data, size_t length)
+{
+    int txBytes = uart_write_bytes(UART_NUM, data, length);
+    if (logName != NULL) {
+        ESP_LOGI(logName, "Wrote %d bytes on uart-tx", txBytes);
+    }
+    return txBytes;
+}
+
 int uart_sendMsg(const char* logName, const char* msg)
 {
     size_t length = strlen(msg);
