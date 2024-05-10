@@ -1,5 +1,5 @@
 #include "board.h"
-#include "ble_mesh_config_root.c"
+#include "ble_mesh_config_root.h"
 #include <string.h>
 #include <stdlib.h>
 #include "esp_log.h"
@@ -12,7 +12,6 @@ static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet1
     uart_sendMsg(NULL,  " ----------- prov_complete -----------");
 
 }
-
 
 static void config_complete_handler(uint16_t addr) {
     ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", addr);
@@ -215,5 +214,5 @@ void app_main(void)
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
-    uart_sendMsg(TAG_M, "[Ignore_prev][UART] ----------- app_main done -----------\n");
+    uart_sendMsg(TAG_M, "[UART] ----------- app_main done -----------\n");
 }

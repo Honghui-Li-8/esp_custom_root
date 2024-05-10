@@ -4,20 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "esp_log.h"
-#include "nvs_flash.h"
-#include "esp_bt.h"
-#include "esp_timer.h"
-
-#include "esp_ble_mesh_defs.h"
-#include "esp_ble_mesh_common_api.h"
-#include "esp_ble_mesh_provisioning_api.h"
-#include "esp_ble_mesh_networking_api.h"
-#include "esp_ble_mesh_config_model_api.h"
-
-#include "ble_mesh_example_init.h"
-#include "ble_mesh_example_nvs.h"
-
+#include "ble_mesh_config_root.h"
 #include "../Secret/NetworkConfig.h"
 
 
