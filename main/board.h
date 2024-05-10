@@ -20,9 +20,9 @@
 // #define RTS_PIN_C6 2
 // #define CTS_PIN_C6 3
 
-#define UART_NUM_H2 UART_NUM_0
-#define TX_PIN_H2 24
-#define RX_PIN_H2 23
+#define UART_NUM_H2 UART_NUM_0 // defult log port
+#define TX_PIN_H2 24 // dpin connected with usb-uart
+#define RX_PIN_H2 23 // dpin connected with usb-uart
 
 #define UART_NUM    UART_NUM_H2
 #define TXD_PIN     TX_PIN_H2

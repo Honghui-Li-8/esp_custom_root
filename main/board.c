@@ -44,10 +44,12 @@ static void uart_init() {  // Uart =============================================
     ESP_LOGI(TAG_B, "Uart init done");
 }
 
+// No longer need this function in futrue
 int uart_sendEndOfMsg() {
     return uart_write_bytes(UART_NUM, END_OF_MSG, strlen(END_OF_MSG)); // end of message symbol
 }
 
+// TB Finish, need to encode the send data for escape bytes
 int uart_sendData(const char* logName, const uint8_t* data, size_t length)
 {
     int txBytes = uart_write_bytes(UART_NUM, data, length);
@@ -69,6 +71,7 @@ int uart_write(const char* logName, const uint8_t* data, size_t length)
     return txBytes;
 }
 
+// TB Finish, need to encode the send data for escape bytes
 int uart_sendMsg(const char* logName, const char* msg)
 {
     size_t length = strlen(msg);
