@@ -20,7 +20,7 @@ static void config_complete_handler(uint16_t addr) {
 
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     // ESP_LOGI(TAG_M, " ----------- recv_message handler trigered -----------");
-    u_int16_t node_addr = ctx->addr;
+    uint16_t node_addr = ctx->addr;
     ESP_LOGW(TAG_M, "-> Recived Message \'%s\' from node-%d", (char*)msg_ptr, node_addr);
 
     static uint8_t *data_buffer = NULL;
