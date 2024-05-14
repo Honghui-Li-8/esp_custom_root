@@ -31,7 +31,7 @@
 #define COMP_DATA_1_OCTET(msg, offset)      (msg[offset])
 #define COMP_DATA_2_OCTET(msg, offset)      (msg[offset + 1] << 8 | msg[offset])
 
-static uint8_t remote_dev_uuid_match[2] = {0x55, 0x55};
+static uint8_t remote_dev_uuid_match[2] = INIT_UUID_MATCH;
 static uint16_t cur_rpr_cli_opcode;
 static uint16_t remote_rpr_srv_addr = 0;
 uint8_t message_tid = 0;
@@ -275,6 +275,8 @@ void example_ble_mesh_send_remote_provisioning_scan_start(void)
     }
 
     /* Send a ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET to get the scan status of remote provisioning server */
+    ESP_LOGI(TAG, "Sending a Scan status of remote provisioning server");
+    ESP_LOGI(TAG, "Remote Provisioning Server Addr: %d", remote_rpr_srv_addr);
     ble_mesh_set_msg_common(&common, remote_rpr_srv_addr, remote_prov_client.model, ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET);
     err = esp_ble_mesh_rpr_client_send(&common, NULL);
     if (err != ESP_OK) {
@@ -406,6 +408,8 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
                     param->status_cb.comp_data_status.composition_data->len));
             example_ble_mesh_parse_node_comp_data(node, param->status_cb.comp_data_status.composition_data->data,
                                                         param->status_cb.comp_data_status.composition_data->len);
+
+            //not sure if i need this or not?
             err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
                 param->status_cb.comp_data_status.composition_data->data,
                 param->status_cb.comp_data_status.composition_data->len);
@@ -731,7 +735,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
                                 ESP_LOGE(TAG, "Set message common fail:%d", __LINE__);
                                 return ;
                             }
-
+                            ESP_LOGI(TAG, "Edge is idle, will send a status report back");
                             msg.scan_start.scan_items_limit = 0; /* 0 indicates there is no limit for scan items' count */
                             msg.scan_start.timeout = 0x0A;       /* 0x0A is the default timeout */
                             msg.scan_start.uuid_en = 0;          /* If uuid enabled, a specify device which have the same uuid will be report */
@@ -755,6 +759,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
                 break;
             case ESP_BLE_MESH_MODEL_OP_RPR_SCAN_START: {
                 if (param->recv.val.scan_status.status == ESP_BLE_MESH_RPR_STATUS_SUCCESS) {
+                    ESP_LOGI(TAG, "Edge is starting to scan, don't press it anymore");
                     ESP_LOGI(TAG, "Start Remote Provisioning Server(addr: 0x%04x) Scan Success", addr);
                 } else {
                     ESP_LOGE(TAG, "Remote Provisioning Client Scan Start Fail");
@@ -767,6 +772,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
             }
             break;
         case ESP_BLE_MESH_MODEL_OP_RPR_SCAN_REPORT:
+            ESP_LOGI(TAG, "Edge got a device, trying to check if this is valid");
             addr = param->recv.params->ctx.addr;
             ESP_LOGI(TAG, "scan_report, rssi %ddBm", param->recv.val.scan_report.rssi);
             ESP_LOG_BUFFER_HEX(TAG": scan_report, uuid", param->recv.val.scan_report.uuid, 16);
@@ -775,6 +781,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
 
             if (param->recv.val.scan_report.uuid[0] != remote_dev_uuid_match[0] ||
                 param->recv.val.scan_report.uuid[1] != remote_dev_uuid_match[1]) {
+                printf("This is the scanned deviced uuid %u, %u", param->recv.val.scan_report.uuid[0], param->recv.val.scan_report.uuid[1]);
                 ESP_LOGI(TAG, "This device is not expect device");
                 return;
             }
@@ -805,6 +812,7 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
             switch (cur_rpr_cli_opcode) {
             case ESP_BLE_MESH_MODEL_OP_RPR_LINK_GET: {
                 if (param->recv.val.link_status.status == ESP_BLE_MESH_RPR_STATUS_SUCCESS) {
+                    ESP_LOGI(TAG, "Edge successfully established a provisaioned link to the unprovisioned device");
                     switch (param->recv.val.link_status.rpr_state) {
                     case ESP_BLE_MESH_RPR_LINK_IDLE:
                         /**

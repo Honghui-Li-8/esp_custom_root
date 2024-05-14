@@ -10,6 +10,6 @@
     "nvs_flash.h": "c",
     "chrono": "c"
   },
-  "idf.portWin": "COM11",
+  "idf.portWin": "COM5",
   "idf.flashType": "UART"
 }
