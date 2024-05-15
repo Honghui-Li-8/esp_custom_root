@@ -12,7 +12,8 @@
     "regex": "c",
     "array": "c",
     "string": "c",
-    "span": "c"
+    "span": "c",
+    "uart.h": "c"
   },
   "idf.portWin": "COM5",
   "idf.flashType": "UART",

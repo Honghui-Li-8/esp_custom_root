@@ -9,13 +9,13 @@
 
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) {
     ESP_LOGI(TAG_M, " ----------- prov_complete handler trigered -----------");
-    uart_sendMsg(NULL,  " ----------- prov_complete -----------");
+    uart_sendMsg(0,  " ----------- prov_complete -----------");
 
 }
 
 static void config_complete_handler(uint16_t addr) {
     ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", addr);
-    uart_sendMsg(NULL,  " ----------- config_complete -----------");
+    uart_sendMsg(0,  " ----------- config_complete -----------");
 }
 
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
@@ -57,8 +57,7 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     // ========== Data update cases ==========
     // ========== Edge Request cases ==========
     // pass node_addr & data to network server through uart
-    uart_write(NULL, &node_addr, 2); // uart_write don't put end of message terminator
-    uart_sendData(NULL, msg_ptr, length);
+    uart_sendData(node_addr, msg_ptr, length);
     // TB Finish, any other thing need to be done in network level?
 
     // send response to conirm recive
@@ -107,7 +106,7 @@ static void execute_uart_command(char* command, size_t cmd_len) {
     if (strncmp(command, "INFO-", 5) == 0) {
         printNetworkInfo();
     } else if (strncmp(command, "SEND-", 5) == 0) {
-        ESP_LOGI(TAG_E, "executing [SEND]");
+        ESP_LOGI(TAG_E, "executing \'SEND-\'");
         char *address_start = command + CMD_LEN;
         char *msg_len_start = address_start + ADDR_LEN;
         char *msg_start = msg_len_start + MSG_SIZE_NUM_LEN;
@@ -122,23 +121,12 @@ static void execute_uart_command(char* command, size_t cmd_len) {
 
 
     // ====== other dev/debug use command ====== 
-    else if (strncmp(command, "LOGOF", 5) == 0) {
-        esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-        uart_sendMsg(TAG_M, "[UART] Turning off all Log's from esp_log\n");
-    }
-    else if (strncmp(command, "LOGON", 5) == 0) {
-        esp_log_level_set(TAG_ALL, ESP_LOG_ERROR);
-        esp_log_level_set(TAG_ALL, ESP_LOG_WARN);
-        esp_log_level_set(TAG_ALL, ESP_LOG_INFO);
-        esp_log_level_set(TAG_ALL, ESP_LOG_DEBUG);
-        esp_log_level_set(TAG_ALL, ESP_LOG_VERBOSE);
-        uart_sendMsg(TAG_M, "[UART] Turning on all Log's from esp_log\n");
-    } else if (strncmp(command, "ECHO-", 5) == 0) {
+    else if (strncmp(command, "ECHO-", 5) == 0) {
         // echo test
-        ESP_LOGW(TAG_M, "recived \"ECHO-\"command");
+        ESP_LOGW(TAG_M, "recived \'ECHO-\' command");
         strcpy((char*) data_buffer, command);
         strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
-        uart_sendMsg("[ECHO]", (char*)data_buffer);
+        uart_sendMsg(0, (char*)data_buffer);
     } else {
         ESP_LOGE(TAG_E, "Command not Vaild");
     }
@@ -150,32 +138,37 @@ static void execute_uart_command(char* command, size_t cmd_len) {
 static void uart_task_handler(char *data) {
     ESP_LOGW(TAG_M, "uart_task_handler called ------------------");
 
-    const char delimiter[] = END_OF_MSG; // end of message delimiter, defined in networkConfig
     int cmd_start = 0;
     int cmd_end = 0;
     int cmd_len = 0;
 
-    for (int i = 0; i < UART_BUF_SIZE - strlen(delimiter); i++) {
-        if (strncmp(data + i, delimiter, strlen(delimiter)) == 0) {
+    for (int i = 0; i < UART_BUF_SIZE; i++) {
+        if (data[i] == 0xFF) {
+            // located start of message
+            cmd_start = i + 1; // start byte of actual message
+        }else if (data[i] == 0xFE) {
             // located end of message
-            cmd_end = i;
+            cmd_end = i;  // 0xFE byte
+        }
+
+        if (cmd_end > cmd_start) {
+            // located a message, message at least 1 byte
+            uint8_t* command = (uint8_t *) (data + cmd_start);
             cmd_len = cmd_end - cmd_start;
-            execute_uart_command(data + cmd_start, cmd_len);
-            cmd_start += strlen(delimiter);
+            uart_sendData(17, command, cmd_len); // test --------------------
+            cmd_len = uart_decoded_bytes(command, cmd_len, command); // decoded cmd will be put back to command pointer
+            uart_sendData(17, command, cmd_len); // test --------------------
+            ESP_LOGE("Decoded Data", "i:%d, cmd_start:%d, cmd_len:%d", i, cmd_start, cmd_len);
+
+            execute_uart_command(data + cmd_start, cmd_len); //TB Finish, don't execute at the moment
         }
     }
 
-    // const char delimiter[] = "\n";
-    // char *command;
-    
-    // command = strtok(data, delimiter);
-    // while (command != NULL) {
-    //     // printf("Executing: [%s]\n", command);
-    //     execute_command(command);
-
-    //     // get next command
-    //     command = strtok(NULL, delimiter);
-    // }
+    if (cmd_start > cmd_end) {
+        // one message is only been read half into buffer, edge case. Not consider at the moment
+        ESP_LOGE("E", "Buffer might have remaining half message!! cmd_start:%d, cmd_end:%d", cmd_start, cmd_end);
+        uart_sendMsg(0, "[Error] Buffer might have remaining half message!!\n");
+    }
 }
 
 static void rx_task(void *arg)
@@ -188,8 +181,8 @@ static void rx_task(void *arg)
     while (1) {
         const int rxBytes = uart_read_bytes(UART_NUM, data, UART_BUF_SIZE, 1000 / portTICK_PERIOD_MS);
         if (rxBytes > 0) {
-            data[rxBytes] = 0; // mark end of string
-            ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
+            // ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
+            // uart_sendMsg(rxBytes, " readed from RX\n");
 
             uart_task_handler((char*) data);
         }
@@ -203,7 +196,7 @@ void app_main(void)
     //              - since the message from uart carries data
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
     esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-    uart_sendMsg(TAG_M, "[Ignore_prev][UART] Turning off all Log's from esp_log\n");
+    uart_sendMsg(0, "[UART] Turning off all Log's from esp_log\n");
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
     if (err != ESP_OK) {
@@ -214,5 +207,5 @@ void app_main(void)
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     
-    uart_sendMsg(TAG_M, "[UART] ----------- app_main done -----------\n");
+    uart_sendMsg(0, "[UART] ----------- app_main done -----------\n");
 }

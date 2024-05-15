@@ -9,6 +9,7 @@
 
 #include "driver/uart.h"
 #include "driver/gpio.h"
+#include <arpa/inet.h>
 #include "../Secret/NetworkConfig.h"
 
 #ifndef _BOARD_H_
@@ -20,9 +21,13 @@
 // #define RTS_PIN_C6 2
 // #define CTS_PIN_C6 3
 
-#define UART_NUM_H2 UART_NUM_0 // defult log port
+#define UART_NUM_H2 UART_NUM_0 // defult log port, root modul,e connect to pc via usb-uart
 #define TX_PIN_H2 24 // dpin connected with usb-uart
 #define RX_PIN_H2 23 // dpin connected with usb-uart
+
+// #define UART_NUM_H2 UART_NUM_1 // UART_NUM_0 is used for usb monitor already
+// #define TX_PIN_H2 0 // we can define any gpio pin
+// #define RX_PIN_H2 1 // we can define any gpio pin
 
 #define UART_NUM    UART_NUM_H2
 #define TXD_PIN     TX_PIN_H2
@@ -32,9 +37,17 @@
 #define UART_BAUD_RATE 115200
 #define UART_BUF_SIZE 1024
 
+#define BUTTON_IO_NUM           9
+#define BUTTON_ACTIVE_LEVEL     0
+#define ESCAPE_BYTE 0xFA
+#define UART_START 0xFF
+#define UART_END 0xFE
+
 void board_init(void);
-int uart_write(const char* logName, const uint8_t* data, size_t length);
-int uart_sendData(const char* logName, const uint8_t* data, size_t length);
-int uart_sendMsg(const char* logName, const char* msg);
+int uart_write_encoded_bytes(uart_port_t uart_num, uint8_t* data, size_t length);
+int uart_decoded_bytes(uint8_t* data, size_t length, uint8_t* decoded_data);
+int uart_sendData(uint16_t node_addr, uint8_t* data, size_t length);
+int uart_sendMsg(uint16_t node_addr, char* msg);
+
 
 #endif /* _BOARD_H_ */
