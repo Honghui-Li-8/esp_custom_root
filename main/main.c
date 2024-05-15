@@ -155,9 +155,7 @@ static void uart_task_handler(char *data) {
             // located a message, message at least 1 byte
             uint8_t* command = (uint8_t *) (data + cmd_start);
             cmd_len = cmd_end - cmd_start;
-            uart_sendData(17, command, cmd_len); // test --------------------
             cmd_len = uart_decoded_bytes(command, cmd_len, command); // decoded cmd will be put back to command pointer
-            uart_sendData(17, command, cmd_len); // test --------------------
             ESP_LOGE("Decoded Data", "i:%d, cmd_start:%d, cmd_len:%d", i, cmd_start, cmd_len);
 
             execute_uart_command(data + cmd_start, cmd_len); //TB Finish, don't execute at the moment
