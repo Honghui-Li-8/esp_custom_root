@@ -11,7 +11,7 @@ static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet1
 
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     // ESP_LOGI(TAG_M, " ----------- recv_message handler trigered -----------");
-    ESP_LOGW(TAG_M, "-> Recived Message [%s]", (char*)msg_ptr);
+    ESP_LOGW(TAG_M, "-> Received Message [%s]", (char*)msg_ptr);
 
     static uint8_t *data_buffer = NULL;
     if (data_buffer == NULL) {
@@ -37,12 +37,32 @@ static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, 
 
 static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
     ESP_LOGI(TAG_M, " ----------- timeout handler trigered -----------");
-    
+
 }
 
 static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");
     
+    return ;
+}
+
+static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+    ESP_LOGI(TAG_M, "----- Connectivity Handler Triggered -----\n");
+
+    static uint8_t *data_buffer = NULL;
+    if (data_buffer == NULL) {
+        data_buffer = (uint8_t*)malloc(128);
+        if (data_buffer == NULL) {
+            printf("Memory allocation failed.\n");
+            return;
+        }
+    }
+    
+    strcpy((char*)data_buffer, "hello Edge, you're connected still");
+    uint16_t response_length = strlen("hello Edge, you're connected still") + 1;
+
+    send_response(ctx, response_length, data_buffer);
+
     return ;
 }
 
@@ -146,9 +166,9 @@ void app_main(void)
     esp_err_t err;
 
 #if defined(ROOT_MODULE)
-    err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler);
+    err = esp_module_root_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
 #else
-    err = esp_module_edge_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler);
+    err = esp_module_edge_init(prov_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
 #endif
 
     if (err != ESP_OK) {

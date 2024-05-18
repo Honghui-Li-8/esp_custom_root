@@ -98,6 +98,7 @@ static esp_ble_mesh_model_t root_models[] = {
 static const esp_ble_mesh_client_op_pair_t client_op_pair[] = {
     { ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE },
     { ECS_193_MODEL_OP_BROADCAST, NULL },
+    { ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_RESPONSE},
 };
 
 static esp_ble_mesh_client_t ecs_193_client = {
@@ -114,6 +115,7 @@ static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECEIVE
 static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECEIVED"
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE, 2),
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 2),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_CONNECTIVITY, 2),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -155,6 +157,7 @@ static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t len
 static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
 static void (*broadcast_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
+static void (*connectivity_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 
 //-------------------- Network Functions ----------------
 void printNetworkInfo()
@@ -182,7 +185,7 @@ void printNetworkInfo()
         ESP_LOGI(TAG_INFO, "     uuid: %s", uuid_str);
     }
 
-    ESP_LOGW(TAG, "----------- End of Network Info--------------");
+    ESP_LOGW(TAG, "----------- End of Network Info --------------");
 }
 
 static esp_err_t example_ble_mesh_store_node_info(const uint8_t uuid[16], uint16_t unicast,
@@ -538,12 +541,8 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
         return ESP_FAIL;
     }
 
-    // return ESP_OK;
-    // // End of Root Module intiate configuration fo edge node
-
-
     // application level callback, let main() know provision is completed
-    // prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);  //==================== app level callback
+    prov_complete_handler_cb(node_index, uuid, primary_addr, element_num, net_idx);  //==================== app level callback
 
     return ESP_OK;
 }
@@ -665,7 +664,10 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
             recv_response_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
         } else if (param->model_operation.opcode == ECS_193_MODEL_OP_BROADCAST) {
             broadcast_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
+        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_CONNECTIVITY) {
+            connectivity_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
         }
+        
         break;
     case ESP_BLE_MESH_MODEL_SEND_COMP_EVT:
         if (param->model_send_comp.err_code) {
@@ -1109,7 +1111,8 @@ static esp_err_t esp_module_root_init(
     void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode),
-    void (*broadcast_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
+    void (*broadcast_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*connectivity_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
 ) {
     esp_err_t err;
 
@@ -1121,9 +1124,11 @@ static esp_err_t esp_module_root_init(
     recv_response_handler_cb = recv_response_handler;
     timeout_handler_cb = timeout_handler;
     broadcast_handler_cb = broadcast_handler;
+    connectivity_handler_cb = connectivity_handler;
     
-    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL || broadcast_handler_cb == NULL) {
-        ESP_LOGE(TAG, "Appliocation Level Callback functin is NULL");
+    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL 
+        || timeout_handler_cb == NULL || broadcast_handler_cb == NULL || connectivity_handler_cb == NULL) {
+        ESP_LOGE(TAG, "Application Level Callback functin is NULL");
         return ESP_FAIL;
     }
     

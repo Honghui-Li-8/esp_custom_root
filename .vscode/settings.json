@@ -8,7 +8,8 @@
     "ble_mesh_example_nvs.h": "c",
     "random": "c",
     "nvs_flash.h": "c",
-    "chrono": "c"
+    "chrono": "c",
+    "stdio.h": "c"
   },
   "idf.portWin": "COM5",
   "idf.flashType": "UART"
