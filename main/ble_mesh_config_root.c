@@ -4,20 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "esp_log.h"
-#include "nvs_flash.h"
-#include "esp_bt.h"
-#include "esp_timer.h"
-
-#include "esp_ble_mesh_defs.h"
-#include "esp_ble_mesh_common_api.h"
-#include "esp_ble_mesh_provisioning_api.h"
-#include "esp_ble_mesh_networking_api.h"
-#include "esp_ble_mesh_config_model_api.h"
-
-#include "ble_mesh_example_init.h"
-#include "ble_mesh_example_nvs.h"
-
+#include "ble_mesh_config_root.h"
 #include "../Secret/NetworkConfig.h"
 
 
@@ -107,6 +94,7 @@ static esp_ble_mesh_prov_t provision = {
 
 // -------------------- application level callback functions ------------------
 static void (*prov_complete_handler_cb)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) = NULL;
+static void (*config_complete_handler_cb)(uint16_t addr) = NULL;
 static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
@@ -194,6 +182,14 @@ static void example_ble_mesh_parse_node_comp_data(const uint8_t *data, uint16_t 
     ESP_LOGI(TAG, "*********************** Composition Data End ***********************");
 }
 
+
+static esp_err_t config_complete(esp_ble_mesh_msg_ctx_t ctx) {
+
+    u_int16_t node_addr = ctx.addr;
+    config_complete_handler_cb(node_addr);
+    return ESP_OK;
+}
+
 static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
                                               esp_ble_mesh_cfg_client_cb_param_t *param)
 {
@@ -254,6 +250,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
             }
         } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND) {
             ESP_LOGW(TAG, "%s, Provision and config successfully", __func__);
+            config_complete(param->params->ctx);
         }
         break;
     case ESP_BLE_MESH_CFG_CLIENT_PUBLISH_EVT:
@@ -501,6 +498,15 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     // ESP_LOGW(TAG, "app_idx: %" PRIu16, ble_mesh_key.app_idx);
     // ESP_LOGW(TAG, "dst_address: %" PRIu16, dst_address);
 
+    // check if node is in network
+    esp_ble_mesh_node_t *node = NULL;
+    node = esp_ble_mesh_provisioner_get_node_with_addr(dst_address);
+    if (node == NULL)
+    {
+        ESP_LOGE(TAG, "Node 0x%04x not exists in network", dst_address);
+        return;
+    }
+
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
     ctx.addr = dst_address;
@@ -512,6 +518,8 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
         ESP_LOGE(TAG, "Failed to send message to node addr 0x%04x", dst_address);
         return;
     }
+
+    // ESP_LOGW(TAG, "Message [%s] sended to [0x%04x]", (char*) data_ptr, dst_address);
 }
 
 
@@ -582,8 +590,9 @@ static esp_err_t ble_mesh_init(void)
 
 
 
-static esp_err_t esp_module_root_init(
+esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
+    void (*config_complete_handler)(uint16_t addr),
     void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode)
@@ -594,11 +603,12 @@ static esp_err_t esp_module_root_init(
 
     // attach application level callback
     prov_complete_handler_cb = prov_complete_handler;
+    config_complete_handler_cb = config_complete_handler;
     recv_message_handler_cb = recv_message_handler;
     recv_response_handler_cb = recv_response_handler;
     timeout_handler_cb = timeout_handler;
-    if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL) {
-        ESP_LOGE(TAG, "Appliocation Level Callback functin is NULL");
+    if (prov_complete_handler_cb == NULL || config_complete_handler_cb == NULL|| recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL) {
+        ESP_LOGE(TAG, "Some Attached Callback functin is NULL");
         return ESP_FAIL;
     }
 
