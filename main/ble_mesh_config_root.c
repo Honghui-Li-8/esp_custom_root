@@ -153,6 +153,7 @@ static esp_ble_mesh_prov_t provision = {
 
 // -------------------- application level callback functions ------------------
 static void (*prov_complete_handler_cb)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) = NULL;
+static void (*config_complete_handler_cb)(uint16_t addr) = NULL;
 static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
@@ -382,6 +383,14 @@ static void example_ble_mesh_parse_node_comp_data(esp_ble_mesh_node_info_t* node
     ESP_LOGI(TAG, "*********************** Composition Data End ***********************");
 }
 
+
+static esp_err_t config_complete(esp_ble_mesh_msg_ctx_t ctx) {
+
+    u_int16_t node_addr = ctx.addr;
+    config_complete_handler_cb(node_addr);
+    return ESP_OK;
+}
+
 static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
                                               esp_ble_mesh_cfg_client_cb_param_t *param)
 {
@@ -446,6 +455,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
             ESP_LOGI(TAG, "The Remote Provisioning Server have been provisioned, You could click button to start remote provisioning");
             remote_rpr_srv_addr = param->params->ctx.addr;
             ESP_LOGW(TAG, "%s, Provision and config successfully", __func__);
+            config_complete(param->params->ctx);
         }
         break;
     case ESP_BLE_MESH_CFG_CLIENT_PUBLISH_EVT:
@@ -1106,8 +1116,9 @@ static esp_err_t ble_mesh_init(void)
 
 
 
-static esp_err_t esp_module_root_init(
+esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
+    void (*config_complete_handler)(uint16_t addr),
     void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode),
@@ -1120,6 +1131,7 @@ static esp_err_t esp_module_root_init(
 
     // attach application level callback
     prov_complete_handler_cb = prov_complete_handler;
+    config_complete_handler_cb = config_complete_handler;
     recv_message_handler_cb = recv_message_handler;
     recv_response_handler_cb = recv_response_handler;
     timeout_handler_cb = timeout_handler;
@@ -1127,7 +1139,7 @@ static esp_err_t esp_module_root_init(
     connectivity_handler_cb = connectivity_handler;
     
     if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL 
-        || timeout_handler_cb == NULL || broadcast_handler_cb == NULL || connectivity_handler_cb == NULL) {
+        || timeout_handler_cb == NULL || broadcast_handler_cb == NULL || connectivity_handler_cb == NULL || config_complete_handler_cb == NULL) {
         ESP_LOGE(TAG, "Application Level Callback functin is NULL");
         return ESP_FAIL;
     }
