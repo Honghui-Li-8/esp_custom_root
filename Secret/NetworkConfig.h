@@ -2,12 +2,12 @@
 #define NETCONFIG_H
 
 #define TAG_ROOT "ROOT"
-#define TAG_EDGE "EDGE"
-#define END_OF_MSG "[E]"  // 3 bytes, change this need to change other stuff
+// #define TAG_EDGE "EDGE"
+// #define END_OF_MSG "[E]" // 3 bytes, change this need to change other stuff
 #define ROOT_MODULE // control which module it is
 
-#define ECS_193_CID         0x02FF// testing  0x02E5  // regulate the module connecting
-#define APP_KEY_IDX         0x0001
+#define ECS_193_CID         0x02FF  // regulate the module connecting
+#define APP_KEY_IDX         0x0000
 #define APP_KEY_OCTET       0x12
 
 #define PROV_OWN_ADDR       0x0001
@@ -26,12 +26,17 @@
 #define COMP_DATA_1_OCTET(msg, offset)      (msg[offset])
 #define COMP_DATA_2_OCTET(msg, offset)      (msg[offset + 1] << 8 | msg[offset])
 
-#define ECS_193_MODEL_ID_CLIENT    0x0000
-#define ECS_193_MODEL_ID_SERVER    0x0001
+#define ECS_193_MODEL_ID_CLIENT         0x0000
+#define ECS_193_MODEL_ID_SERVER         0x0001
+#define ECS_193_MODEL_ID_FP_CLIENT      0x0002
+#define ECS_193_MODEL_ID_FP_SERVER      0x0003
 
-#define ECS_193_MODEL_OP_CUSTOM      ESP_BLE_MESH_MODEL_OP_3(0x00, ECS_193_CID)
-#define ECS_193_MODEL_OP_MESSAGE     ESP_BLE_MESH_MODEL_OP_3(0x01, ECS_193_CID)
-#define ECS_193_MODEL_OP_RESPONSE    ESP_BLE_MESH_MODEL_OP_3(0x02, ECS_193_CID)
+#define ECS_193_MODEL_OP_CUSTOM         ESP_BLE_MESH_MODEL_OP_3(0x00, ECS_193_CID)
+#define ECS_193_MODEL_OP_MESSAGE        ESP_BLE_MESH_MODEL_OP_3(0x01, ECS_193_CID)
+#define ECS_193_MODEL_OP_RESPONSE       ESP_BLE_MESH_MODEL_OP_3(0x02, ECS_193_CID)
+#define ECS_193_MODEL_OP_BROADCAST      ESP_BLE_MESH_MODEL_OP_3(0x03, ECS_193_CID)
+#define ECS_193_MODEL_OP_CONNECTIVITY   ESP_BLE_MESH_MODEL_OP_3(0x04, ECS_193_CID)
+#define ECS_193_MODEL_OP_EMPTY          ESP_BLE_MESH_MODEL_OP_3(0x05, ECS_193_CID)
 
 #define NVS_KEY_ROOT "ECS_193_client"
 

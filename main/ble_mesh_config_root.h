@@ -8,7 +8,10 @@
 #include "esp_ble_mesh_provisioning_api.h"
 #include "esp_ble_mesh_networking_api.h"
 #include "esp_ble_mesh_config_model_api.h"
+#include "esp_ble_mesh_rpr_model_api.h"
 
+
+#include "mesh/adapter.h"
 #include "ble_mesh_example_init.h"
 #include "ble_mesh_example_nvs.h"
 
@@ -25,7 +28,9 @@ esp_err_t esp_module_root_init(
     void (*config_complete_handler)(uint16_t addr),
     void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
-    void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode)
+    void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode),
+    void (*broadcast_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*connectivity_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
 );
 
 #endif /* _BLE_ROOT_H_ */

@@ -9,38 +9,17 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <string.h>
 #include "esp_log.h"
 #include "iot_button.h"
+#include "board.h"
 #include "board.h"
 
 #define TAG_B "BOARD"
 #define TAG_W "Debug"
 
 extern void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr);
-
-static void button_tap_cb(void* arg)
-{
-    ESP_LOGW(TAG_W, "button pressed ------------------------- ");
-    static uint8_t *data_buffer = NULL;
-    if (data_buffer == NULL) {
-        data_buffer = (uint8_t*)malloc(128);
-        if (data_buffer == NULL) {
-            printf("Memory allocation failed.\n");
-            return;
-        }
-    }
-    
-    strcpy((char*)data_buffer, "[CMD]root write serial\n");
-    uart_sendMsg(TAG_B, (char*) data_buffer);
-}
-
-static void board_button_init(void)
-{
-    button_handle_t btn_handle = iot_button_create(BUTTON_IO_NUM, BUTTON_ACTIVE_LEVEL);
-    if (btn_handle) {
-        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, button_tap_cb, "RELEASE");
-    }
-}
+extern void example_ble_mesh_send_remote_provisioning_scan_start(void);
 
 static void uart_init() {  // Uart ===========================================================
     const int uart_num = UART_NUM;
@@ -64,6 +43,33 @@ static void uart_init() {  // Uart =============================================
 
     ESP_LOGI(TAG_B, "Uart init done");
 }
+
+static void button_tap_cb(void* arg)
+{
+    ESP_LOGW(TAG_W, "button pressed ------------------------- ");
+    ESP_LOGW(TAG_W, "---------- Trying to start remote provisioning ----------");
+    example_ble_mesh_send_remote_provisioning_scan_start();
+    // static uint8_t *data_buffer = NULL;
+    // if (data_buffer == NULL) {
+    //     data_buffer = (uint8_t*)malloc(128);
+    //     if (data_buffer == NULL) {
+    //         printf("Memory allocation failed.\n");
+    //         return;
+    //     }
+    // }
+    
+    // strcpy((char*)data_buffer, "[CMD]root write serial\n");
+    // uart_sendMsg(TAG_B, (char*) data_buffer);
+}
+
+static void board_button_init(void)
+{
+    button_handle_t btn_handle = iot_button_create(BUTTON_IO_NUM, BUTTON_ACTIVE_LEVEL);
+    if (btn_handle) {
+        iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, button_tap_cb, "RELEASE");
+    }
+}
+
 // escape char
 int uart_write_encoded_bytes(uart_port_t uart_num, uint8_t* data, size_t length) {
     uint8_t esacpe_byte = ESCAPE_BYTE;
