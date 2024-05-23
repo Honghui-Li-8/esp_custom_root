@@ -2,8 +2,8 @@
 #define NETCONFIG_H
 
 #define TAG_ROOT "ROOT"
-#define TAG_EDGE "EDGE"
-#define END_OF_MSG "[E]" // 3 bytes, change this need to change other stuff
+// #define TAG_EDGE "EDGE"
+// #define END_OF_MSG "[E]" // 3 bytes, change this need to change other stuff
 #define ROOT_MODULE // control which module it is
 
 #define ECS_193_CID         0x02FF  // regulate the module connecting
