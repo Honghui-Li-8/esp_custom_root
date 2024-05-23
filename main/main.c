@@ -79,6 +79,32 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
     
 }
 
+static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");	    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");
+    	    
+    return ;
+}
+
+static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+    ESP_LOGI(TAG_M, "----- Connectivity Handler Triggered -----\n");
+
+    static uint8_t *data_buffer = NULL;
+    if (data_buffer == NULL) {
+        data_buffer = (uint8_t*)malloc(128);
+        if (data_buffer == NULL) {
+            printf("Memory allocation failed.\n");
+            return;
+        }
+    }
+
+    strcpy((char*)data_buffer, "hello Edge, you're connected still");
+    uint16_t response_length = strlen("hello Edge, you're connected still") + 1;
+
+    send_response(ctx, response_length, data_buffer);
+
+    return ;
+}
+
 static void execute_uart_command(char* command, size_t cmd_len) {
     ESP_LOGI(TAG_M, "execute_command called");
     static const char *TAG_E = "EXE";
@@ -196,7 +222,7 @@ void app_main(void)
     esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
     uart_sendMsg(0, "[UART] Turning off all Log's from esp_log\n");
     
-    esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler);
+    esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {
         ESP_LOGE(TAG_M, "Network Module Initialization failed (err %d)", err);
         return;

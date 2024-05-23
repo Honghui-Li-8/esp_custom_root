@@ -6,8 +6,9 @@
   ],
   "files.associations": {
     "ble_mesh_example_nvs.h": "c",
-    "random": "c"
+    "random": "c",
+    "ble_mesh_config_root.h": "c"
   },
-  "idf.portWin": "COM7",
+  "idf.portWin": "COM5",
   "idf.flashType": "UART"
 }

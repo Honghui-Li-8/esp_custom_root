@@ -4,24 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "esp_log.h"
-#include "nvs_flash.h"
-#include "esp_bt.h"
-#include "esp_timer.h"
-
-#include "esp_ble_mesh_defs.h"
-#include "esp_ble_mesh_common_api.h"
-#include "esp_ble_mesh_provisioning_api.h"
-#include "esp_ble_mesh_networking_api.h"
-#include "esp_ble_mesh_config_model_api.h"
-#include "esp_ble_mesh_rpr_model_api.h"
-
-#include "mesh/adapter.h"
-#include "ble_mesh_example_init.h"
-#include "ble_mesh_example_nvs.h"
-
-#include "../Secret/NetworkConfig.h"
-
+#include "ble_mesh_config_root.h"
 
 #define TAG TAG_ROOT
 #define TAG_W "Debug"
@@ -65,7 +48,6 @@ static esp_ble_mesh_node_info_t nodes[CONFIG_BLE_MESH_MAX_PROV_NODES] = {
 // static const char * NVS_KEY = NVS_KEY_ROOT;
 
 #define MSG_ROLE MSG_ROLE_ROOT
-
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
