@@ -71,5 +71,4 @@ int uart_decoded_bytes(uint8_t* data, size_t length, uint8_t* decoded_data);
 int uart_sendData(uint16_t node_addr, uint8_t* data, size_t length);
 int uart_sendMsg(uint16_t node_addr, char* msg);
 
-
 #endif /* _BOARD_H_ */

@@ -144,6 +144,10 @@ static void execute_uart_command(char* command, size_t cmd_len) {
         send_message(node_addr, msg_length, (uint8_t *) msg_start);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*) msg_start);
     }
+    else if (strncmp(command, "REST-", 5) == 0) {
+        ESP_LOGI(TAG_E, "executing \'REST-\'");
+        reset_board();
+    }
 
 
     // ====== other dev/debug use command ====== 
