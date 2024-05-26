@@ -146,7 +146,7 @@ static void execute_uart_command(char* command, size_t cmd_len) {
     }
     else if (strncmp(command, "REST-", 5) == 0) {
         ESP_LOGI(TAG_E, "executing \'REST-\'");
-        reset_board();
+        reset_esp32();
     }
 
 
