@@ -24,6 +24,7 @@ void printNetworkInfo();
 void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr);
 void broadcast_message(uint16_t length, uint8_t *data_ptr);
 void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_ptr);
+void reset_esp32();
 esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
     void (*config_complete_handler)(uint16_t addr),
