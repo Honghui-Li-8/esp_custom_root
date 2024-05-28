@@ -2,11 +2,17 @@
 #include "ble_mesh_config_root.h"
 #include <string.h>
 #include <stdlib.h>
+#include <arpa/inet.h> // for host byte endianess <--> network byte endianess convert
 #include "esp_log.h"
 
 #define TAG_M "MAIN"
 #define TAG_ALL "*"
+#define UART_OPCODE_LEN 3
+#define NODE_ADDR_LEN 2  // can't change bc is base on esp
+#define NODE_UUID_LEN 16 // can't change bc is base on esp
 
+
+/***************** Event Handler *****************/
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) {
     ESP_LOGI(TAG_M, " ----------- prov_complete handler trigered -----------");
     uart_sendMsg(0,  " ----------- prov_complete -----------");
@@ -80,9 +86,9 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 }
 
 static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
-    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");	    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");
-    	    
-    return ;
+    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");
+
+    return;
 }
 
 static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
@@ -103,6 +109,50 @@ static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     send_response(ctx, response_length, data_buffer);
 
     return ;
+}
+
+
+/***************** Other Functions *****************/
+static void send_network_info() {
+    // craft bytes of network info and send to uart
+    uint16_t node_count = esp_ble_mesh_provisioner_get_prov_node_count();
+    uint16_t node_left = node_count;
+    const esp_ble_mesh_node_t **nodeTableEntry = esp_ble_mesh_provisioner_get_node_table_entry();
+
+    // 18 byte per node, send up to 40 node everytime
+    uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
+    uint8_t buffer_size = UART_OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
+    uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
+
+    strncpy(buffer, "NET-----", UART_OPCODE_LEN); // load 3 byte opcode
+
+    esp_ble_mesh_node_t *node_itr = nodeTableEntry;
+    while (node_left > 0)
+    {
+        // compute current ctach, max 40
+        uint8_t batch_size = (node_left < 40 ? node_left : 40);
+        uint8_t buffer_itr = buffer + UART_OPCODE_LEN;
+
+        // load batch size (1 byte node amount)
+        *buffer_itr = batch_size;
+        ++buffer_itr;
+
+        // load all node data in this batch
+        for (int i = 0; i < batch_size; ++i) {
+            // load current node
+            uint16_t node_addr = node_itr->unicast_addr;
+            uint16_t node_addr_network_endian = htons(node_addr);
+
+            memcpy(buffer_itr, &node_addr_network_endian, NODE_ADDR_LEN);
+            buffer_itr += NODE_ADDR_LEN;
+            memcpy(buffer_itr, node_itr->dev_uuid, NODE_UUID_LEN);
+            buffer_itr += NODE_UUID_LEN;
+
+            // move to next node
+            node_itr += 1;
+        }
+        node_left -= batch_size;
+    }
 }
 
 static void execute_uart_command(char* command, size_t cmd_len) {

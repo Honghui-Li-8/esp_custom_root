@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <string.h>
 #include "esp_log.h"
 #include "iot_button.h"
 #include "board.h"
@@ -128,9 +127,9 @@ int uart_sendData(uint16_t node_addr, uint8_t* data, size_t length)
     uint8_t uart_end = UART_END;
     int txBytes = 0;
 
-    uint16_t node_addr_big_endian = htons(node_addr); 
+    uint16_t node_addr_network_endian = htons(node_addr); 
     txBytes += uart_write_bytes(UART_NUM, &uart_start, 1); // 0xFF
-    txBytes += uart_write_encoded_bytes(UART_NUM, (uint8_t*) &node_addr_big_endian, 2);
+    txBytes += uart_write_encoded_bytes(UART_NUM, (uint8_t*) &node_addr_network_endian, 2);
     txBytes += uart_write_encoded_bytes(UART_NUM, data, length);
     txBytes += uart_write_bytes(UART_NUM, &uart_end, 1);  // 0xFE
 
