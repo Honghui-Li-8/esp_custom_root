@@ -30,10 +30,10 @@ static void config_complete_handler(uint16_t node_addr) {
     // 16 byte uuid on node
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
     uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 16 byte node_uuid
-    uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
+    uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    strncpy(buffer, "NOD-----", OPCODE_LEN); // load 3 byte opcode
-    uint8_t buffer_itr = buffer + OPCODE_LEN;
+    memcpy(buffer, "NOD----", OPCODE_LEN); // load 3 byte opcode
+    uint8_t* buffer_itr = buffer + OPCODE_LEN;
     esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
     if (node_ptr == NULL) {
         uart_sendMsg(0,  "Error, can get node that's just configed");
@@ -61,7 +61,7 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
         // handle locally
         char response[5] = "S";
         uint16_t response_length = strlen(response);
-        send_response(ctx, response_length, response);
+        send_response(ctx, response_length, (uint8_t*) response);
         ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
         return; // or continue to execute
     }
@@ -73,7 +73,7 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     // send response
     char response[5] = "S";
     uint16_t response_length = strlen(response);
-    send_response(ctx, response_length, response);
+    send_response(ctx, response_length, (uint8_t *) response);
     ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
 }
 
@@ -129,16 +129,17 @@ static void send_network_info() {
     // 18 byte per node, send up to 40 node everytime
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
     uint8_t buffer_size = OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
-    uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
+    uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    strncpy(buffer, "NET-----", OPCODE_LEN); // load 3 byte opcode
+    memcpy(buffer, "NET---", OPCODE_LEN); // load 3 byte opcode
 
-    esp_ble_mesh_node_t *node_itr = nodeTableEntry;
+    int node_index = 0;
     while (node_left > 0)
     {
+        const esp_ble_mesh_node_t *node_itr = nodeTableEntry[node_index];
         // compute current ctach, max 40
         uint8_t batch_size = (node_left < 40 ? node_left : 40);
-        uint8_t buffer_itr = buffer + OPCODE_LEN;
+        uint8_t* buffer_itr = buffer + OPCODE_LEN;
 
         // load batch size (1 byte node amount)
         *buffer_itr = batch_size;
@@ -156,7 +157,7 @@ static void send_network_info() {
             buffer_itr += NODE_UUID_LEN;
 
             // move to next node
-            node_itr += 1;
+            node_index += 1;
         }
 
         uart_sendData(0, buffer, buffer_itr-buffer);
@@ -283,7 +284,9 @@ void app_main(void)
     // turn off log - important, bc the server counting on '[E]' as end of message instaed of '\0'
     //              - since the message from uart carries data
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
-    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);ere
+    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    uart_sendMsg(0, "[UART] Turning off all Log's from esp_log\n");
+
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {
