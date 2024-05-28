@@ -2,6 +2,7 @@
 #include "ble_mesh_config_root.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <arpa/inet.h> // for host byte endianess <--> network byte endianess convert
 #include "esp_log.h"
 
@@ -10,6 +11,10 @@
 #define UART_OPCODE_LEN 3
 #define NODE_ADDR_LEN 2  // can't change bc is base on esp
 #define NODE_UUID_LEN 16 // can't change bc is base on esp
+#define CMD_LEN 5 // network command length - 5 byte
+#define CMD_GET_NET_INFO "NINFO"
+#define CMD_SEND_MSG "SEND-"
+#define CMD_BROADCAST_MSG "BCAST"
 
 
 /***************** Event Handler *****************/
@@ -182,14 +187,14 @@ static void execute_uart_command(char* command, size_t cmd_len) {
         ESP_LOGE(TAG_E, "Command [%s] too short", command);
         return;
     }
-    const size_t CMD_LEN = 5;
     const size_t ADDR_LEN = 2;
     const size_t MSG_SIZE_NUM_LEN = 1;
 
     // ====== core commands ====== 
-    if (strncmp(command, "INFO-", 5) == 0) {
-        printNetworkInfo();
-    } else if (strncmp(command, "SEND-", 5) == 0) {
+    if (strncmp(command, CMD_GET_NET_INFO, CMD_LEN) == 0) {
+        send_network_info();
+    } 
+    else if (strncmp(command, CMD_SEND_MSG, CMD_LEN) == 0) {
         ESP_LOGI(TAG_E, "executing \'SEND-\'");
         char *address_start = command + CMD_LEN;
         char *msg_len_start = address_start + ADDR_LEN;
@@ -201,6 +206,15 @@ static void execute_uart_command(char* command, size_t cmd_len) {
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
         send_message(node_addr, msg_length, (uint8_t *) msg_start);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*) msg_start);
+    } 
+    else if (strncmp(command, CMD_BROADCAST_MSG, CMD_LEN) == 0) {
+        ESP_LOGI(TAG_E, "executing \'BCAST\'");
+        ESP_LOGI(TAG_E, "executing \'SEND-\'");
+        char *msg_len_start = command + CMD_LEN + ADDR_LEN + MSG_SIZE_NUM_LEN;
+        size_t msg_length = (size_t)msg_len_start[0];
+
+        broadcast_message(msg_length, (uint8_t *) msg_start);
+
     }
 
 
