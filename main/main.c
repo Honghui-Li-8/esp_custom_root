@@ -8,7 +8,7 @@
 
 #define TAG_M "MAIN"
 #define TAG_ALL "*"
-#define UART_OPCODE_LEN 3
+#define OPCODE_LEN 3
 #define NODE_ADDR_LEN 2  // can't change bc is base on esp
 #define NODE_UUID_LEN 16 // can't change bc is base on esp
 #define CMD_LEN 5 // network command length - 5 byte
@@ -29,11 +29,11 @@ static void config_complete_handler(uint16_t node_addr) {
     uart_sendMsg(0,  " ----------- config_complete -----------");
     // 18 byte per node
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
-    uint8_t buffer_size = UART_OPCODE_LEN + node_data_size; // 3 byte opcode, 18 byte node_data
+    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 18 byte node_data
     uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    strncpy(buffer, "NOD-----", UART_OPCODE_LEN); // load 3 byte opcode
-    uint8_t buffer_itr = buffer + UART_OPCODE_LEN;
+    strncpy(buffer, "NOD-----", OPCODE_LEN); // load 3 byte opcode
+    uint8_t buffer_itr = buffer + OPCODE_LEN;
     esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
     if (node_ptr == NULL) {
         uart_sendMsg(0,  "Error, can get node that's just configed");
@@ -131,17 +131,17 @@ static void send_network_info() {
 
     // 18 byte per node, send up to 40 node everytime
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
-    uint8_t buffer_size = UART_OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
+    uint8_t buffer_size = OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
     uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    strncpy(buffer, "NET-----", UART_OPCODE_LEN); // load 3 byte opcode
+    strncpy(buffer, "NET-----", OPCODE_LEN); // load 3 byte opcode
 
     esp_ble_mesh_node_t *node_itr = nodeTableEntry;
     while (node_left > 0)
     {
         // compute current ctach, max 40
         uint8_t batch_size = (node_left < 40 ? node_left : 40);
-        uint8_t buffer_itr = buffer + UART_OPCODE_LEN;
+        uint8_t buffer_itr = buffer + OPCODE_LEN;
 
         // load batch size (1 byte node amount)
         *buffer_itr = batch_size;
@@ -168,7 +168,7 @@ static void send_network_info() {
     free(buffer);
 }
 
-static void execute_uart_command(char* command, size_t cmd_len) {
+static void execute_uart_command(char* command, size_t cmd_total_len) {
     ESP_LOGI(TAG_M, "execute_command called");
     static const char *TAG_E = "EXE";
     static uint8_t *data_buffer = NULL;
@@ -187,8 +187,6 @@ static void execute_uart_command(char* command, size_t cmd_len) {
         ESP_LOGE(TAG_E, "Command [%s] too short", command);
         return;
     }
-    const size_t ADDR_LEN = 2;
-    const size_t MSG_SIZE_NUM_LEN = 1;
 
     // ====== core commands ====== 
     if (strncmp(command, CMD_GET_NET_INFO, CMD_LEN) == 0) {
@@ -197,11 +195,10 @@ static void execute_uart_command(char* command, size_t cmd_len) {
     else if (strncmp(command, CMD_SEND_MSG, CMD_LEN) == 0) {
         ESP_LOGI(TAG_E, "executing \'SEND-\'");
         char *address_start = command + CMD_LEN;
-        char *msg_len_start = address_start + ADDR_LEN;
-        char *msg_start = msg_len_start + MSG_SIZE_NUM_LEN;
+        char *msg_start = address_start + NODE_ADDR_LEN;
 
         uint16_t node_addr = (uint16_t)((address_start[0] << 8) | address_start[1]);
-        size_t msg_length = (size_t)msg_len_start[0];
+        size_t msg_length = cmd_total_len - CMD_LEN - NODE_ADDR_LEN;
 
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
         send_message(node_addr, msg_length, (uint8_t *) msg_start);
@@ -209,12 +206,10 @@ static void execute_uart_command(char* command, size_t cmd_len) {
     } 
     else if (strncmp(command, CMD_BROADCAST_MSG, CMD_LEN) == 0) {
         ESP_LOGI(TAG_E, "executing \'BCAST\'");
-        ESP_LOGI(TAG_E, "executing \'SEND-\'");
-        char *msg_len_start = command + CMD_LEN + ADDR_LEN + MSG_SIZE_NUM_LEN;
-        size_t msg_length = (size_t)msg_len_start[0];
+        char *msg_start = command + CMD_LEN + NODE_ADDR_LEN;
+        size_t msg_length = cmd_total_len - CMD_LEN - NODE_ADDR_LEN;
 
         broadcast_message(msg_length, (uint8_t *) msg_start);
-
     }
 
 
@@ -230,7 +225,7 @@ static void execute_uart_command(char* command, size_t cmd_len) {
     }
 
     
-    ESP_LOGI(TAG_E, "Command [%.*s] executed", cmd_len, command);
+    ESP_LOGI(TAG_E, "Command [%.*s] executed", cmd_total_len, command);
 }
 
 static void uart_task_handler(char *data) {
