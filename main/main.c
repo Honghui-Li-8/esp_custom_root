@@ -27,9 +27,9 @@ static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet1
 static void config_complete_handler(uint16_t node_addr) {
     ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", node_addr);
     uart_sendMsg(0,  " ----------- config_complete -----------");
-    // 18 byte per node
+    // 16 byte uuid on node
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
-    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 18 byte node_data
+    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 16 byte node_uuid
     uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
     strncpy(buffer, "NOD-----", OPCODE_LEN); // load 3 byte opcode
@@ -42,13 +42,10 @@ static void config_complete_handler(uint16_t node_addr) {
     }
 
     // load node data
-    uint16_t node_addr_network_endian = htons(node_addr);
-    memcpy(buffer_itr, &node_addr_network_endian, NODE_ADDR_LEN);
-    buffer_itr += NODE_ADDR_LEN;
     memcpy(buffer_itr, node_ptr->dev_uuid, NODE_UUID_LEN);
     buffer_itr += NODE_UUID_LEN;
 
-    uart_sendData(0, buffer, buffer_itr-buffer);
+    uart_sendData(node_addr, buffer, buffer_itr-buffer);
     free(buffer);
 }
 
