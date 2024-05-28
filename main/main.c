@@ -19,9 +19,32 @@ static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet1
 
 }
 
-static void config_complete_handler(uint16_t addr) {
-    ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", addr);
+static void config_complete_handler(uint16_t node_addr) {
+    ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", node_addr);
     uart_sendMsg(0,  " ----------- config_complete -----------");
+    // 18 byte per node
+    uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
+    uint8_t buffer_size = UART_OPCODE_LEN + node_data_size; // 3 byte opcode, 18 byte node_data
+    uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
+
+    strncpy(buffer, "NOD-----", UART_OPCODE_LEN); // load 3 byte opcode
+    uint8_t buffer_itr = buffer + UART_OPCODE_LEN;
+    esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
+    if (node_ptr == NULL) {
+        uart_sendMsg(0,  "Error, can get node that's just configed");
+        free(buffer);
+        return;
+    }
+
+    // load node data
+    uint16_t node_addr_network_endian = htons(node_addr);
+    memcpy(buffer_itr, &node_addr_network_endian, NODE_ADDR_LEN);
+    buffer_itr += NODE_ADDR_LEN;
+    memcpy(buffer_itr, node_ptr->dev_uuid, NODE_UUID_LEN);
+    buffer_itr += NODE_UUID_LEN;
+
+    uart_sendData(0, buffer, buffer_itr-buffer);
+    free(buffer);
 }
 
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
@@ -29,49 +52,27 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     uint16_t node_addr = ctx->addr;
     ESP_LOGW(TAG_M, "-> Received Message \'%s\' from node-%d", (char*)msg_ptr, node_addr);
 
-    static uint8_t *data_buffer = NULL;
-    if (data_buffer == NULL) {
-        data_buffer = (uint8_t*)malloc(128);
-        if (data_buffer == NULL) {
-            printf("Memory allocation failed.\n");
-            return;
-        }
-    }
-
-    // recived a ble-message from edge ndoe - TB Finish
-    //  - leave all the task hadling logic to app level (python server)
-    //  - when recived ble-message, pass it directly to net-server
-    //  - if there is sepcial case in future, add if/switch case here
+    // recived a ble-message from edge ndoe
     // ========== potential special case ==========
-    if (strncmp((char*)msg_ptr, "Special Case", 1) == 0) {
-        // Data update on node
-        // hadle locally
-        return;
-    }
-    
-    // cases for testing
-    if (strncmp((char*)msg_ptr, "Ehco Test", 1) == 0){
-        
-        strcpy((char*)data_buffer, "hello Edge, my code seems working fine");
-        uint16_t response_length = strlen("hello Edge, my code seems working fine") + 1;
-
-        send_response(ctx, response_length, data_buffer);
-        ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*)data_buffer);
-        return;
+    if (strncmp((char*)msg_ptr, "Special Case", 12) == 0) {
+        // place holder for special case that need to be handled in esp-root module
+        // handle locally
+        char response[5] = "S";
+        uint16_t response_length = strlen(response);
+        send_response(ctx, response_length, response);
+        ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
+        return; // or continue to execute
     }
 
-    // ========== Data update cases ==========
-    // ========== Edge Request cases ==========
+    // ========== General case, pass up to APP level ==========
     // pass node_addr & data to network server through uart
     uart_sendData(node_addr, msg_ptr, length);
-    // TB Finish, any other thing need to be done in network level?
 
-    // send response to conirm recive
-    strcpy((char*)data_buffer, "ACK");
-    uint16_t response_length = strlen("ACK");
-
-    send_response(ctx, response_length, data_buffer);
-    ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*)data_buffer);
+    // send response
+    char response[5] = "S";
+    uint16_t response_length = strlen(response);
+    send_response(ctx, response_length, response);
+    ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
 }
 
 static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
@@ -86,9 +87,13 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 }
 
 static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
-    ESP_LOGI(TAG_M, "Receive Broadcast from Root\n");
+    if (ctx->addr == PROV_OWN_ADDR) {
+        return; // is root's own broadcast
+    }
 
-    return;
+    ESP_LOGI(TAG_M, "Receive Broadcast Message from Node-%hu\n", ctx->addr);
+    // handle it as normal message
+    recv_message_handler(ctx, length, msg_ptr);
 }
 
 static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
@@ -151,8 +156,11 @@ static void send_network_info() {
             // move to next node
             node_itr += 1;
         }
+
+        uart_sendData(0, buffer, buffer_itr-buffer);
         node_left -= batch_size;
     }
+    free(buffer);
 }
 
 static void execute_uart_command(char* command, size_t cmd_len) {
