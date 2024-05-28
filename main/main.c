@@ -7,10 +7,12 @@
 
 #define TAG_M "MAIN"
 #define TAG_ALL "*"
-#define UART_OPCODE_LEN 3
+#define OPCODE_LEN 3
 #define NODE_ADDR_LEN 2  // can't change bc is base on esp
 #define NODE_UUID_LEN 16 // can't change bc is base on esp
-
+#define CMD_GET_NET_INFO "NINFO"
+#define CMD_SEND_MSG "SEND-"
+#define CMD_BROADCAST_MSG "BCAST"
 
 /***************** Event Handler *****************/
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) {
@@ -121,17 +123,18 @@ static void send_network_info() {
 
     // 18 byte per node, send up to 40 node everytime
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
-    uint8_t buffer_size = UART_OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
-    uint8_t buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
+    uint8_t buffer_size = OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
+    uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    strncpy(buffer, "NET-----", UART_OPCODE_LEN); // load 3 byte opcode
+    memcpy(buffer, "NET---", OPCODE_LEN); // load 3 byte opcode
 
-    esp_ble_mesh_node_t *node_itr = nodeTableEntry;
+    int node_index = 0;
     while (node_left > 0)
     {
+        const esp_ble_mesh_node_t *node_itr = nodeTableEntry[node_index];
         // compute current ctach, max 40
         uint8_t batch_size = (node_left < 40 ? node_left : 40);
-        uint8_t buffer_itr = buffer + UART_OPCODE_LEN;
+        uint8_t* buffer_itr = buffer + OPCODE_LEN;
 
         // load batch size (1 byte node amount)
         *buffer_itr = batch_size;
@@ -149,10 +152,13 @@ static void send_network_info() {
             buffer_itr += NODE_UUID_LEN;
 
             // move to next node
-            node_itr += 1;
+            node_index += 1;
         }
+
+        uart_sendData(0, buffer, buffer_itr-buffer);
         node_left -= batch_size;
     }
+    free(buffer);
 }
 
 static void execute_uart_command(char* command, size_t cmd_len) {
