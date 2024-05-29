@@ -183,6 +183,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
     // TB Finish, TB Complete
     if (strlen(command) < 5) {
         ESP_LOGE(TAG_E, "Command [%s] too short", command);
+        uart_sendMsg(0, "Error: Command Too Short\n");
         return;
     }
 
@@ -241,9 +242,11 @@ static void uart_task_handler(char *data) {
         if (data[i] == 0xFF) {
             // located start of message
             cmd_start = i + 1; // start byte of actual message
+            uart_sendMsg(cmd_start, "Found Start of Message\n");
         }else if (data[i] == 0xFE) {
             // located end of message
-            cmd_end = i;  // 0xFE byte
+            cmd_end = i; // 0xFE byte
+            uart_sendMsg(cmd_end, "Found End Of Message\n");
         }
 
         if (cmd_end > cmd_start) {
@@ -254,6 +257,8 @@ static void uart_task_handler(char *data) {
             ESP_LOGE("Decoded Data", "i:%d, cmd_start:%d, cmd_len:%d", i, cmd_start, cmd_len);
 
             execute_uart_command(data + cmd_start, cmd_len); //TB Finish, don't execute at the moment
+
+            cmd_start = cmd_end;
         }
     }
 
