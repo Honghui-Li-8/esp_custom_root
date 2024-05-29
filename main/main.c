@@ -273,7 +273,7 @@ static void uart_task_handler(char *data) {
     if (cmd_start > cmd_end) {
         // one message is only been read half into buffer, edge case. Not consider at the moment
         ESP_LOGE("E", "Buffer might have remaining half message!! cmd_start:%d, cmd_end:%d", cmd_start, cmd_end);
-        uart_sendMsg(0, "[Warning] Buffer might have remaining half message!!\n");
+        // uart_sendMsg(0, "[Warning] Buffer might have remaining half message!!\n");
     }
 }
 
