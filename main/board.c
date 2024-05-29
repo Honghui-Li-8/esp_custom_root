@@ -47,18 +47,11 @@ static void button_tap_cb(void* arg)
 {
     ESP_LOGW(TAG_W, "button pressed ------------------------- ");
     ESP_LOGW(TAG_W, "---------- Trying to start remote provisioning ----------");
-    example_ble_mesh_send_remote_provisioning_scan_start();
-    // static uint8_t *data_buffer = NULL;
-    // if (data_buffer == NULL) {
-    //     data_buffer = (uint8_t*)malloc(128);
-    //     if (data_buffer == NULL) {
-    //         printf("Memory allocation failed.\n");
-    //         return;
-    //     }
-    // }
-    
-    // strcpy((char*)data_buffer, "[CMD]root write serial\n");
-    // uart_sendMsg(TAG_B, (char*) data_buffer);
+    // example_ble_mesh_send_remote_provisioning_scan_start();
+
+    uart_sendMsg(0, "\n\n[UART] calling esp_restart\n\n\n");
+    esp_restart();
+    uart_sendMsg(0, "[UART] what happens here");
 }
 
 static void board_button_init(void)
