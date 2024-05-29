@@ -12,7 +12,7 @@
 #include "esp_log.h"
 #include "iot_button.h"
 #include "board.h"
-#include "board.h"
+#include "ble_mesh_config_root.h"
 
 #define TAG_B "BOARD"
 #define TAG_W "Debug"
@@ -49,9 +49,12 @@ static void button_tap_cb(void* arg)
     ESP_LOGW(TAG_W, "---------- Trying to start remote provisioning ----------");
     // example_ble_mesh_send_remote_provisioning_scan_start();
 
-    uart_sendMsg(0, "\n\n[UART] calling esp_restart\n\n\n");
-    esp_restart();
-    uart_sendMsg(0, "[UART] what happens here");
+    // uart_sendMsg(0, "\n\n[UART] calling esp_restart\n\n\n");
+    // esp_restart();
+    // uart_sendMsg(0, "[UART] what happens here");
+#if CONFIG_BLE_MESH_SETTINGS
+    esp_ble_mesh_provisioner_direct_erase_settings();
+#endif /* CONFIG_BLE_MESH_SETTINGS */
 }
 
 static void board_button_init(void)
