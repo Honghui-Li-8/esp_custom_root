@@ -209,6 +209,10 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
 
         broadcast_message(msg_length, (uint8_t *) msg_start);
     }
+    else if (strncmp(command, "REST-", 5) == 0) {
+        ESP_LOGI(TAG_E, "executing \'REST-\'");
+        reset_esp32();
+    }
 
 
     // ====== other dev/debug use command ====== 
