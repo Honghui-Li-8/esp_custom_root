@@ -9,6 +9,7 @@
 #define TAG TAG_ROOT
 #define TAG_W "Debug"
 #define TAG_INFO "Net_Info"
+#include "board.h"
 
 //maybe i'll move it to networkConfig.h
 #define COMP_DATA_1_OCTET(msg, offset)      (msg[offset])
@@ -988,6 +989,7 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     if (node == NULL)
     {
         ESP_LOGE(TAG, "Node 0x%04x not exists in network", dst_address);
+        uart_sendMsg(dst_address, "Node not exists in network\n");
         return;
     }
 
@@ -1000,6 +1002,7 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, true, message_role);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send message to node addr 0x%04x", dst_address);
+        uart_sendMsg(dst_address, "Failed to send to Node\n");
         return;
     }
 

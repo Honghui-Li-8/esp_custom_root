@@ -181,7 +181,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
     // ============= process and execute commands from net server (from uart) ==================
     // uart command format
     // TB Finish, TB Complete
-    if (strlen(command) < 5) {
+    if (cmd_total_len < 5) {
         ESP_LOGE(TAG_E, "Command [%s] too short", command);
         uart_sendMsg(0, "Error: Command Too Short\n");
         return;
@@ -196,9 +196,19 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         char *address_start = command + CMD_LEN;
         char *msg_start = address_start + NODE_ADDR_LEN;
 
-        uint16_t node_addr = (uint16_t)((address_start[0] << 8) | address_start[1]);
         size_t msg_length = cmd_total_len - CMD_LEN - NODE_ADDR_LEN;
 
+        if (msg_length <= 0)
+        {
+            uart_sendMsg(0, "Error: No Message Attached\n");
+            return;
+        } else if (cmd_total_len - CMD_LEN < 2)
+        {
+            uart_sendMsg(0, "Error: No Dst Address Attached\n");
+            return;
+        }
+
+        uint16_t node_addr = (uint16_t)((address_start[0] << 8) | address_start[1]);
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
         send_message(node_addr, msg_length, (uint8_t *) msg_start);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*) msg_start);
@@ -242,11 +252,9 @@ static void uart_task_handler(char *data) {
         if (data[i] == 0xFF) {
             // located start of message
             cmd_start = i + 1; // start byte of actual message
-            uart_sendMsg(cmd_start, "Found Start of Message\n");
         }else if (data[i] == 0xFE) {
             // located end of message
             cmd_end = i; // 0xFE byte
-            uart_sendMsg(cmd_end, "Found End Of Message\n");
         }
 
         if (cmd_end > cmd_start) {
@@ -265,7 +273,7 @@ static void uart_task_handler(char *data) {
     if (cmd_start > cmd_end) {
         // one message is only been read half into buffer, edge case. Not consider at the moment
         ESP_LOGE("E", "Buffer might have remaining half message!! cmd_start:%d, cmd_end:%d", cmd_start, cmd_end);
-        uart_sendMsg(0, "[Error] Buffer might have remaining half message!!\n");
+        uart_sendMsg(0, "[Warning] Buffer might have remaining half message!!\n");
     }
 }
 
