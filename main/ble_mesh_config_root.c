@@ -1051,36 +1051,12 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
 }
 
 void reset_esp32() {
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
-
-    nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open("mesh", NVS_READWRITE, &nvs_handle);
-    if (err != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-    } else {
-        err = nvs_erase_all(nvs_handle);
-        if (err == ESP_OK) {
-            printf("BLE Mesh configuration erased successfully!\n");
-        } else {
-            printf("Error erasing BLE Mesh configuration: %s\n", esp_err_to_name(err));
-        }
-
-        err = nvs_commit(nvs_handle);
-        if (err != ESP_OK) {
-            printf("Error committing BLE Mesh configuration erase: %s\n", esp_err_to_name(err));
-        }
-
-        nvs_close(nvs_handle);
-
-        // Restart the ESP32 to apply the changes
-        printf("Restarting the ESP32...\n");
-        esp_restart();
-    }
+#if CONFIG_BLE_MESH_SETTINGS
+    // erase the persistent memory
+    esp_ble_mesh_provisioner_direct_erase_settings();
+#endif /* CONFIG_BLE_MESH_SETTINGS */
+    printf("Restarting the ESP32...\n");
+    esp_restart();
 }
 
 static esp_err_t ble_mesh_init(void)
