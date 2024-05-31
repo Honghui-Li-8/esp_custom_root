@@ -90,12 +90,16 @@ static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
 
 static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     if (ctx->addr == PROV_OWN_ADDR) {
+        // uart_sendMsg(0, "Broadcasted");
         return; // is root's own broadcast
     }
 
-    ESP_LOGI(TAG_M, "Receive Broadcast Message from Node-%hu\n", ctx->addr);
-    // handle it as normal message
-    recv_message_handler(ctx, length, msg_ptr);
+    uint16_t node_addr = ctx->addr;
+    ESP_LOGW(TAG_M, "-> Received Broadcast Message \'%s\' from node-%d", (char *)msg_ptr, node_addr);
+
+    // ========== General case, pass up to APP level ==========
+    // pass node_addr & data to to edge device using uart
+    uart_sendData(node_addr, msg_ptr, length);
 }
 
 static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
