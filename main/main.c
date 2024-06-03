@@ -229,14 +229,14 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
     }
     else if (strncmp(command, "RST-R", 5) == 0) {
         ESP_LOGI(TAG_E, "executing \'RST-R\'");
+        esp_restart();
+    }
+    else if (strncmp(command, "CLEAN", 5) == 0)
+    {
+        ESP_LOGI(TAG_E, "executing \'CLEAN\'");
         uart_sendMsg(0, " - Reseting Root Module\n");
-        char edge_restart_message[20] = "RST";
-        uint16_t msg_length = strlen(edge_restart_message);
-        broadcast_message(msg_length, (uint8_t *)edge_restart_message);
-        uart_sendMsg(0, " - Reseting Edge Module\n");
         reset_esp32();
     }
-
 
     // ====== other dev/debug use command ====== 
     else if (strncmp(command, "ECHO-", 5) == 0) {

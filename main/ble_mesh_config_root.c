@@ -1051,12 +1051,16 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
 }
 
 void reset_esp32() {
+    // order edge module to restart since network is about to get refreshed
+    char edge_restart_message[20] = "RST";
+    uint16_t msg_length = strlen(edge_restart_message);
+    broadcast_message(msg_length, (uint8_t *)edge_restart_message);
+
 #if CONFIG_BLE_MESH_SETTINGS
     // erase the persistent memory
-    esp_ble_mesh_provisioner_direct_erase_settings();
+    esp_err_t error = ESP_OK;
+    error = esp_ble_mesh_provisioner_direct_erase_settings();
 #endif /* CONFIG_BLE_MESH_SETTINGS */
-    printf("Restarting the ESP32...\n");
-    // esp_restart(); //  can't not immedialy restart
 }
 
 static esp_err_t ble_mesh_init(void)

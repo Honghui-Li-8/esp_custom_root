@@ -73,11 +73,9 @@ static void button_tap_cb(void* arg)
 
 static void button_liong_press_cb(void *arg){
     ESP_LOGW(TAG_W, "button long pressed ------------------------- ");
+    ESP_LOGE(TAG_W, "[Root] Full Reset on Network");
     uart_sendMsg(0, "[Root] Full Reset on Network\n");
-#if CONFIG_BLE_MESH_SETTINGS
-    // erase the persistent memory
-    esp_ble_mesh_provisioner_direct_erase_settings();
-#endif /* CONFIG_BLE_MESH_SETTINGS */
+    reset_esp32();
 }
 
 static void board_button_init(void)
