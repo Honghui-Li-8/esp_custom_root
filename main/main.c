@@ -315,7 +315,7 @@ void app_main(void)
     // turn off log - important, bc the server counting on '[E]' as end of message instaed of '\0'
     //              - since the message from uart carries data
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
-    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {

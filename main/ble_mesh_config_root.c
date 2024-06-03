@@ -1108,6 +1108,9 @@ static esp_err_t ble_mesh_init(void)
 
 void reset_esp32()
 {
+    provision_enable = false; // Disable provisioning since going to reset the network
+                              // will get reenable when module restart
+                              
     // order edge module to restart since network is about to get refreshed
     char edge_restart_message[20] = "RST";
     uint16_t msg_length = strlen(edge_restart_message);
@@ -1115,8 +1118,6 @@ void reset_esp32()
 
 #if CONFIG_BLE_MESH_SETTINGS
     // erase the persistent memory
-    provision_enable = false; // Disable provisioning since going to reset the network
-                              // will get reenable when module restart
     esp_err_t error = ESP_OK;
     error = esp_ble_mesh_provisioner_direct_erase_settings();
 #endif /* CONFIG_BLE_MESH_SETTINGS */
