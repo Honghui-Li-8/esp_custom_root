@@ -47,6 +47,7 @@ static void config_complete_handler(uint16_t node_addr) {
 
     uart_sendData(node_addr, buffer, buffer_itr-buffer);
     free(buffer);
+    printNetworkInfo(); // esp log for debug
 }
 
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {

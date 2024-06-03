@@ -11,6 +11,8 @@
 #define TAG_INFO "Net_Info"
 #include "board.h"
 
+static bool provision_enable = true;
+
 //maybe i'll move it to networkConfig.h
 #define COMP_DATA_1_OCTET(msg, offset)      (msg[offset])
 #define COMP_DATA_2_OCTET(msg, offset)      (msg[offset + 1] << 8 | msg[offset])
@@ -574,6 +576,11 @@ static void recv_unprov_adv_pkt(uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN], uint
 static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
                                              esp_ble_mesh_prov_cb_param_t *param)
 { 
+    if (!provision_enable) {
+        // diabled provisioning
+        return;
+    }
+
     switch (event) {
     case ESP_BLE_MESH_PROVISIONER_PROV_COMPLETE_EVT:
         prov_complete(param->provisioner_prov_complete.node_idx, param->provisioner_prov_complete.device_uuid,
@@ -1050,19 +1057,6 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
     }
 }
 
-void reset_esp32() {
-    // order edge module to restart since network is about to get refreshed
-    char edge_restart_message[20] = "RST";
-    uint16_t msg_length = strlen(edge_restart_message);
-    broadcast_message(msg_length, (uint8_t *)edge_restart_message);
-
-#if CONFIG_BLE_MESH_SETTINGS
-    // erase the persistent memory
-    esp_err_t error = ESP_OK;
-    error = esp_ble_mesh_provisioner_direct_erase_settings();
-#endif /* CONFIG_BLE_MESH_SETTINGS */
-}
-
 static esp_err_t ble_mesh_init(void)
 {
     uint8_t match[2] = INIT_UUID_MATCH;
@@ -1110,6 +1104,23 @@ static esp_err_t ble_mesh_init(void)
     ESP_LOGI(TAG, "ESP BLE Mesh Provisioner initialized");
 
     return ESP_OK;
+}
+
+void reset_esp32()
+{
+    // order edge module to restart since network is about to get refreshed
+    char edge_restart_message[20] = "RST";
+    uint16_t msg_length = strlen(edge_restart_message);
+    broadcast_message(msg_length, (uint8_t *)edge_restart_message);
+
+#if CONFIG_BLE_MESH_SETTINGS
+    // erase the persistent memory
+    provision_enable = false; // Disable provisioning since going to reset the network
+                              // will get reenable when module restart
+    esp_err_t error = ESP_OK;
+    error = esp_ble_mesh_provisioner_direct_erase_settings();
+#endif /* CONFIG_BLE_MESH_SETTINGS */
+    uart_sendMsg(0, "Network Reseted, Should restart Root Module ASAP\n");
 }
 
 esp_err_t esp_module_root_init(
