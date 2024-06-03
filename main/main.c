@@ -222,10 +222,14 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         char *msg_start = command + CMD_LEN + NODE_ADDR_LEN;
         size_t msg_length = cmd_total_len - CMD_LEN - NODE_ADDR_LEN;
 
-        broadcast_message(msg_length, (uint8_t *) msg_start);
+        broadcast_message(msg_length, (uint8_t *)msg_start);
     }
     else if (strncmp(command, "RST-R", 5) == 0) {
         ESP_LOGI(TAG_E, "executing \'RST-R\'");
+        uart_sendMsg(0, " - Reseting Root Module\n");
+        char edge_restart_message[20] = "RST";
+        uint16_t msg_length = strlen(edge_restart_message);
+        broadcast_message(msg_length, (uint8_t *)edge_restart_message);
         reset_esp32();
     }
 
@@ -269,7 +273,6 @@ static void uart_task_handler(char *data) {
             ESP_LOGE("Decoded Data", "i:%d, cmd_start:%d, cmd_len:%d", i, cmd_start, cmd_len);
 
             execute_uart_command(data + cmd_start, cmd_len); //TB Finish, don't execute at the moment
-
             cmd_start = cmd_end;
         }
     }
@@ -288,7 +291,9 @@ static void rx_task(void *arg)
     uint8_t* data = (uint8_t*) malloc(UART_BUF_SIZE + 1);
     ESP_LOGW(RX_TASK_TAG, "rx_task called ------------------");
 
-    while (1) {
+    while (1)
+    {
+        memset(data, 0, UART_BUF_SIZE);
         const int rxBytes = uart_read_bytes(UART_NUM, data, UART_BUF_SIZE, 1000 / portTICK_PERIOD_MS);
         if (rxBytes > 0) {
             // ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
@@ -306,8 +311,6 @@ void app_main(void)
     //              - since the message from uart carries data
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
     esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
-    uart_sendMsg(0, "[UART] Turning off all Log's from esp_log\n");
-
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {
@@ -318,6 +321,6 @@ void app_main(void)
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
-    uart_sendMsg(0, "[UART] ----------- app_main done -----------\n");
-    printNetworkInfo();
+    uart_sendMsg(0, "[R]online\n");
+    printNetworkInfo(); // esp log for debug
 }
