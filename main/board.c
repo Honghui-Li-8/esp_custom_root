@@ -46,16 +46,17 @@ static void uart_init() {  // Uart =============================================
 static void button_tap_cb(void* arg)
 {
     ESP_LOGW(TAG_W, "button pressed ------------------------- ");
-    static int control = 0;
+    static int control = 1;
     uint16_t node_addr = 5;
     
-    if (control == 0) {
-        char msg[20] = "RST";
-        uint16_t msg_length = strlen(msg);
-        send_message(node_addr, msg_length, (uint8_t *)msg);
-        uart_sendMsg(node_addr, "[Test] Sended RST to Node-6\n");
-        control = 2;
-    }else if (control == 1) {
+    // if (control == 0) {
+    //     char msg[20] = "RST";
+    //     uint16_t msg_length = strlen(msg);
+    //     send_message(node_addr, msg_length, (uint8_t *)msg);
+    //     uart_sendMsg(node_addr, "[Test] Sended RST to Node-6\n");
+    //     control = 1;
+    // }else 
+    if (control == 1) {
         char msg[20] = "TSTITEST0";
         uint16_t msg_length = strlen(msg);
         send_message(node_addr, msg_length, (uint8_t *)msg);
@@ -70,11 +71,21 @@ static void button_tap_cb(void* arg)
     }
 }
 
+static void button_liong_press_cb(void *arg){
+    ESP_LOGW(TAG_W, "button long pressed ------------------------- ");
+    uart_sendMsg(0, "[Root] Full Reset on Network\n");
+#if CONFIG_BLE_MESH_SETTINGS
+    // erase the persistent memory
+    esp_ble_mesh_provisioner_direct_erase_settings();
+#endif /* CONFIG_BLE_MESH_SETTINGS */
+}
+
 static void board_button_init(void)
 {
     button_handle_t btn_handle = iot_button_create(BUTTON_IO_NUM, BUTTON_ACTIVE_LEVEL);
     if (btn_handle) {
         iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, button_tap_cb, "RELEASE");
+        iot_button_set_serial_cb(btn_handle, 3, 5000, button_liong_press_cb, "SERIAL");
     }
 }
 

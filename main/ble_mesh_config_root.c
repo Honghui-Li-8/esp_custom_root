@@ -1056,7 +1056,7 @@ void reset_esp32() {
     esp_ble_mesh_provisioner_direct_erase_settings();
 #endif /* CONFIG_BLE_MESH_SETTINGS */
     printf("Restarting the ESP32...\n");
-    esp_restart();
+    // esp_restart(); //  can't not immedialy restart
 }
 
 static esp_err_t ble_mesh_init(void)

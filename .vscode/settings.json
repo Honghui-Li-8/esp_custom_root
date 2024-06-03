@@ -7,7 +7,8 @@
   "files.associations": {
     "ble_mesh_example_nvs.h": "c",
     "random": "c",
-    "ble_mesh_config_root.h": "c"
+    "ble_mesh_config_root.h": "c",
+    "iot_button.h": "c"
   },
   "idf.portWin": "COM5",
   "idf.flashType": "UART",
