@@ -63,12 +63,12 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
         uint16_t response_length = strlen(response);
         send_response(ctx, response_length, (uint8_t*) response);
         ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
-        return; // or continue to execute
     }
-
     // ========== General case, pass up to APP level ==========
     // pass node_addr & data to network server through uart
-    uart_sendData(node_addr, msg_ptr, length);
+    else {
+        uart_sendData(node_addr, msg_ptr, length);
+    }
 
     // send response
     char response[5] = "S";
@@ -230,6 +230,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         char edge_restart_message[20] = "RST";
         uint16_t msg_length = strlen(edge_restart_message);
         broadcast_message(msg_length, (uint8_t *)edge_restart_message);
+        uart_sendMsg(0, " - Reseting Edge Module\n");
         reset_esp32();
     }
 

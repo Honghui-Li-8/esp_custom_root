@@ -91,7 +91,7 @@ static esp_ble_mesh_client_t ecs_193_client = {
 
 
 static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECEIVED"
-    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE, 2),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE, 1),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
