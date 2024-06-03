@@ -199,23 +199,26 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         ESP_LOGI(TAG_E, "executing \'SEND-\'");
         char *address_start = command + CMD_LEN;
         char *msg_start = address_start + NODE_ADDR_LEN;
-
         size_t msg_length = cmd_total_len - CMD_LEN - NODE_ADDR_LEN;
 
-        if (msg_length <= 0)
-        {
-            uart_sendMsg(0, "Error: No Message Attached\n");
-            return;
-        } else if (cmd_total_len - CMD_LEN < 2)
-        {
+        if (cmd_total_len < CMD_LEN + NODE_ADDR_LEN) {
             uart_sendMsg(0, "Error: No Dst Address Attached\n");
+            return;
+        } else if (msg_length <= 0) {
+            uart_sendMsg(0, "Error: No Message Attached\n");
             return;
         }
 
-        uint16_t node_addr = (uint16_t)((address_start[0] << 8) | address_start[1]);
+        uint16_t node_addr_network_order = (uint16_t)((address_start[0] << 8) | address_start[1]);
+        uint16_t node_addr = ntohs(node_addr_network_order);
+        if (node_addr == 0)
+        {
+            node_addr = PROV_OWN_ADDR; // root addr
+        }
+        
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
         send_message(node_addr, msg_length, (uint8_t *) msg_start);
-        ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char*) msg_start);
+        ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char *)msg_start);
     } 
     else if (strncmp(command, CMD_BROADCAST_MSG, CMD_LEN) == 0) {
         ESP_LOGI(TAG_E, "executing \'BCAST\'");

@@ -46,15 +46,28 @@ static void uart_init() {  // Uart =============================================
 static void button_tap_cb(void* arg)
 {
     ESP_LOGW(TAG_W, "button pressed ------------------------- ");
-    ESP_LOGW(TAG_W, "---------- Trying to start remote provisioning ----------");
-    // example_ble_mesh_send_remote_provisioning_scan_start();
-
-    // uart_sendMsg(0, "\n\n[UART] calling esp_restart\n\n\n");
-    // esp_restart();
-    // uart_sendMsg(0, "[UART] what happens here");
-#if CONFIG_BLE_MESH_SETTINGS
-    esp_ble_mesh_provisioner_direct_erase_settings();
-#endif /* CONFIG_BLE_MESH_SETTINGS */
+    static int control = 0;
+    uint16_t node_addr = 5;
+    
+    if (control == 0) {
+        char msg[20] = "RST";
+        uint16_t msg_length = strlen(msg);
+        send_message(node_addr, msg_length, (uint8_t *)msg);
+        uart_sendMsg(node_addr, "[Test] Sended RST to Node-6\n");
+        control = 2;
+    }else if (control == 1) {
+        char msg[20] = "TSTITEST0";
+        uint16_t msg_length = strlen(msg);
+        send_message(node_addr, msg_length, (uint8_t *)msg);
+        uart_sendMsg(node_addr, "[Test] Sended Init to Node-6\n");
+        control = 2;
+    } else {
+        char msg[20] = "TSTS";
+        uint16_t msg_length = strlen(msg);
+        send_message(node_addr, msg_length, (uint8_t *)msg);
+        uart_sendMsg(node_addr, "[Test] Sended Start to Node-6\n");
+        control = 0;
+    }
 }
 
 static void board_button_init(void)
