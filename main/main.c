@@ -65,6 +65,7 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
         send_response(ctx, response_length, (uint8_t*) response);
         ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
     }
+    
     // ========== General case, pass up to APP level ==========
     // pass node_addr & data to network server through uart
     else {
@@ -187,7 +188,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
     // uart command format
     // TB Finish, TB Complete
     if (cmd_total_len < 5) {
-        ESP_LOGE(TAG_E, "Command [%s] too short", command);
+        ESP_LOGE(TAG_E, "Command [%s] with %d byte too short", command, cmd_total_len);
         uart_sendMsg(0, "Error: Command Too Short\n");
         return;
     }
@@ -246,7 +247,10 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         strcpy((char*) data_buffer, command);
         strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
         uart_sendMsg(0, (char*)data_buffer);
-    } else {
+    }
+
+    // ====== ENot Supported  command ======
+    else {
         ESP_LOGE(TAG_E, "Command not Vaild");
     }
 
@@ -285,14 +289,16 @@ static void uart_task_handler(char *data) {
     if (cmd_start > cmd_end) {
         // one message is only been read half into buffer, edge case. Not consider at the moment
         ESP_LOGE("E", "Buffer might have remaining half message!! cmd_start:%d, cmd_end:%d", cmd_start, cmd_end);
-        // uart_sendMsg(0, "[Warning] Buffer might have remaining half message!!\n");
+        uart_sendMsg(0, "[Warning] Buffer might have remaining half message!!\n");
     }
 }
 
 static void rx_task(void *arg)
 {
+    // esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
+    // esp_log_level_set(RX_TASK_TAG, ESP_LOG_NONE);
+
     static const char *RX_TASK_TAG = "RX";
-    esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
     uint8_t* data = (uint8_t*) malloc(UART_BUF_SIZE + 1);
     ESP_LOGW(RX_TASK_TAG, "rx_task called ------------------");
 
@@ -312,14 +318,15 @@ static void rx_task(void *arg)
 
 void app_main(void)
 {
-    // turn off log - important, bc the server counting on '[E]' as end of message instaed of '\0'
-    //              - since the message from uart carries data
+    // turn off log - Important, bc the server counting on uart escape byte 0xff and 0xfe
+    //              - So need to enforce all uart traffic
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
     esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {
         ESP_LOGE(TAG_M, "Network Module Initialization failed (err %d)", err);
+        uart_sendMsg(0, "Error: Network Module Initialization failed\n");
         return;
     }
 
