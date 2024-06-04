@@ -15,7 +15,8 @@
 #define CMD_GET_NET_INFO "NINFO"
 #define CMD_SEND_MSG "SEND-"
 #define CMD_BROADCAST_MSG "BCAST"
-
+#define CMD_RESET_ROOT "RST-R"
+#define CMD_CLEAN_NETWORK_CONFIG "CLEAN"
 
 /***************** Event Handler *****************/
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t node_addr, uint8_t element_num, uint16_t net_idx) {
@@ -106,21 +107,9 @@ static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint
 static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     ESP_LOGI(TAG_M, "----- Connectivity Handler Triggered -----\n");
 
-    static uint8_t *data_buffer = NULL;
-    if (data_buffer == NULL) {
-        data_buffer = (uint8_t*)malloc(128);
-        if (data_buffer == NULL) {
-            printf("Memory allocation failed.\n");
-            return;
-        }
-    }
-
-    strcpy((char*)data_buffer, "hello Edge, you're connected still");
-    uint16_t response_length = strlen("hello Edge, you're connected still") + 1;
-
-    send_response(ctx, response_length, data_buffer);
-
-    return ;
+    char response[3] = "S";
+    uint16_t response_length = strlen(response);
+    send_response(ctx, response_length, (uint8_t *)response);
 }
 
 
@@ -228,11 +217,11 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
 
         broadcast_message(msg_length, (uint8_t *)msg_start);
     }
-    else if (strncmp(command, "RST-R", 5) == 0) {
+    else if (strncmp(command, CMD_RESET_ROOT, 5) == 0) {
         ESP_LOGI(TAG_E, "executing \'RST-R\'");
         esp_restart();
     }
-    else if (strncmp(command, "CLEAN", 5) == 0)
+    else if (strncmp(command, CMD_CLEAN_NETWORK_CONFIG, 5) == 0)
     {
         ESP_LOGI(TAG_E, "executing \'CLEAN\'");
         uart_sendMsg(0, " - Reseting Root Module\n");
@@ -240,15 +229,15 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
     }
 
     // ====== other dev/debug use command ====== 
-    else if (strncmp(command, "ECHO-", 5) == 0) {
-        // echo test
-        ESP_LOGW(TAG_M, "recived \'ECHO-\' command");
-        strcpy((char*) data_buffer, command);
-        strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
-        uart_sendData(0, data_buffer, strlen((char *)data_buffer) + 1);
-    }
+    // else if (strncmp(command, "ECHO-", 5) == 0) {
+    //     // echo test
+    //     ESP_LOGW(TAG_M, "recived \'ECHO-\' command");
+    //     strcpy((char*) data_buffer, command);
+    //     strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
+    //     uart_sendData(0, data_buffer, strlen((char *)data_buffer) + 1);
+    // }
 
-    // ====== ENot Supported  command ======
+    // ====== Not Supported  command ======
     else {
         ESP_LOGE(TAG_E, "Command not Vaild");
     }
