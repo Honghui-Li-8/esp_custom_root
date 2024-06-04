@@ -12,7 +12,7 @@
 #include "esp_log.h"
 #include "iot_button.h"
 #include "board.h"
-#include "board.h"
+#include "ble_mesh_config_root.h"
 
 #define TAG_B "BOARD"
 #define TAG_W "Debug"
@@ -46,19 +46,36 @@ static void uart_init() {  // Uart =============================================
 static void button_tap_cb(void* arg)
 {
     ESP_LOGW(TAG_W, "button pressed ------------------------- ");
-    ESP_LOGW(TAG_W, "---------- Trying to start remote provisioning ----------");
-    example_ble_mesh_send_remote_provisioning_scan_start();
-    // static uint8_t *data_buffer = NULL;
-    // if (data_buffer == NULL) {
-    //     data_buffer = (uint8_t*)malloc(128);
-    //     if (data_buffer == NULL) {
-    //         printf("Memory allocation failed.\n");
-    //         return;
-    //     }
-    // }
+    static int control = 1;
+    uint16_t node_addr = 5;
     
-    // strcpy((char*)data_buffer, "[CMD]root write serial\n");
-    // uart_sendMsg(TAG_B, (char*) data_buffer);
+    // if (control == 0) {
+    //     char msg[20] = "RST";
+    //     uint16_t msg_length = strlen(msg);
+    //     send_message(node_addr, msg_length, (uint8_t *)msg);
+    //     uart_sendMsg(node_addr, "[Test] Sended RST to Node-6\n");
+    //     control = 1;
+    // }else 
+    if (control == 1) {
+        char msg[20] = "TSTITEST0";
+        uint16_t msg_length = strlen(msg);
+        send_message(node_addr, msg_length, (uint8_t *)msg);
+        uart_sendMsg(node_addr, "[Test] Sended Init to Node-6\n");
+        control = 2;
+    } else {
+        char msg[20] = "TSTS";
+        uint16_t msg_length = strlen(msg);
+        send_message(node_addr, msg_length, (uint8_t *)msg);
+        uart_sendMsg(node_addr, "[Test] Sended Start to Node-6\n");
+        control = 0;
+    }
+}
+
+static void button_liong_press_cb(void *arg){
+    ESP_LOGW(TAG_W, "button long pressed ------------------------- ");
+    ESP_LOGE(TAG_W, "[Root] Full Reset on Network");
+    uart_sendMsg(0, "[Root] Full Reset on Network\n");
+    reset_esp32();
 }
 
 static void board_button_init(void)
@@ -66,6 +83,7 @@ static void board_button_init(void)
     button_handle_t btn_handle = iot_button_create(BUTTON_IO_NUM, BUTTON_ACTIVE_LEVEL);
     if (btn_handle) {
         iot_button_set_evt_cb(btn_handle, BUTTON_CB_RELEASE, button_tap_cb, "RELEASE");
+        iot_button_set_serial_cb(btn_handle, 3, 5000, button_liong_press_cb, "SERIAL");
     }
 }
 
