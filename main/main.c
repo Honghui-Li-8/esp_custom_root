@@ -18,15 +18,14 @@
 
 
 /***************** Event Handler *****************/
-static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) {
+static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t node_addr, uint8_t element_num, uint16_t net_idx) {
     ESP_LOGI(TAG_M, " ----------- prov_complete handler trigered -----------");
-    uart_sendMsg(0,  " ----------- prov_complete -----------");
-
+    uart_sendMsg(node_addr, " ----------- prov_complete -----------\n");
 }
 
 static void config_complete_handler(uint16_t node_addr) {
     ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", node_addr);
-    uart_sendMsg(0,  " ----------- config_complete -----------");
+    uart_sendMsg(node_addr, " ----------- config_complete -----------\n");
     // 16 byte uuid on node
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
     uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 16 byte node_uuid
@@ -36,7 +35,7 @@ static void config_complete_handler(uint16_t node_addr) {
     uint8_t* buffer_itr = buffer + OPCODE_LEN;
     esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
     if (node_ptr == NULL) {
-        uart_sendMsg(0,  "Error, can get node that's just configed");
+        uart_sendMsg(node_addr, "Error, can get node that's just configed");
         free(buffer);
         return;
     }
@@ -246,7 +245,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         ESP_LOGW(TAG_M, "recived \'ECHO-\' command");
         strcpy((char*) data_buffer, command);
         strcpy(((char*) data_buffer) + strlen(command), "; [ESP] confirm recived from uart; \n");
-        uart_sendMsg(0, (char*)data_buffer);
+        uart_sendData(0, data_buffer, strlen((char *)data_buffer) + 1);
     }
 
     // ====== ENot Supported  command ======
@@ -333,6 +332,7 @@ void app_main(void)
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
-    uart_sendMsg(0, "[R]online\n");
+    char message[15] = "[R]online\n";
+    uart_sendData(0, (uint8_t *)message, strlen(message));
     printNetworkInfo(); // esp log for debug
 }
