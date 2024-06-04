@@ -112,7 +112,6 @@ static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     send_response(ctx, response_length, (uint8_t *)response);
 }
 
-
 /***************** Other Functions *****************/
 static void send_network_info() {
     // craft bytes of network info and send to uart
