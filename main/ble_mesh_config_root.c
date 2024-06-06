@@ -62,7 +62,7 @@ static esp_ble_mesh_cfg_srv_t config_server = {
 #else
     .friend_state = ESP_BLE_MESH_FRIEND_NOT_SUPPORTED,
 #endif
-    .default_ttl = 7,
+    .default_ttl = 3,
     /* 3 transmissions with 20ms interval */
     .net_transmit = ESP_BLE_MESH_TRANSMIT(2, 20),
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),

@@ -198,7 +198,8 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
             return;
         }
 
-        uint16_t node_addr_network_order = (uint16_t)((address_start[0] << 8) | address_start[1]);
+        uint16_t node_addr_network_order = 0;
+        memcpy(&node_addr_network_order, address_start, 2);
         uint16_t node_addr = ntohs(node_addr_network_order);
         if (node_addr == 0)
         {
