@@ -207,7 +207,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         }
         
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
-        send_message(node_addr, msg_length, (uint8_t *) msg_start);
+        send_message(node_addr, msg_length, (uint8_t *) msg_start, false);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char *)msg_start);
     } 
     else if (strncmp(command, CMD_BROADCAST_MSG, CMD_LEN) == 0) {
