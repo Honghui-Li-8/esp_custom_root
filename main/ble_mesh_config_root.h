@@ -21,6 +21,7 @@
 #define _BLE_ROOT_H_
 
 void printNetworkInfo();
+void set_message_ttl(int new_ttl);
 void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr, bool require_response);
 void broadcast_message(uint16_t length, uint8_t *data_ptr);
 void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_ptr);
