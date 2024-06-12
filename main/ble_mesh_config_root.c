@@ -55,7 +55,7 @@ static esp_ble_mesh_node_info_t nodes[CONFIG_BLE_MESH_MAX_PROV_NODES] = {
 
 // =============== Line Sync with Edge Code for future readers ===============
 #define MSG_ROLE MSG_ROLE_ROOT
-static int ble_message_ttl = DEFAULT_MSG_SEND_TTL;
+static uint8_t ble_message_ttl = DEFAULT_MSG_SEND_TTL;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -88,7 +88,7 @@ static esp_ble_mesh_model_t root_models[] = {
 static const esp_ble_mesh_client_op_pair_t client_op_pair[] = {
     { ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE },
     { ECS_193_MODEL_OP_BROADCAST, ECS_193_MODEL_OP_EMPTY },
-    { ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_CONFIRM},
+    { ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_EMPTY},
     { ECS_193_MODEL_OP_SET_TTL, ECS_193_MODEL_OP_EMPTY},
 };
 
@@ -153,7 +153,7 @@ static void (*broadcast_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length
 static void (*connectivity_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 
 //-------------------- Root Network Utility Functions ----------------
-void set_message_ttl(int new_ttl) {
+void set_message_ttl(uint8_t new_ttl) {
     ble_message_ttl = new_ttl;
 }
 
