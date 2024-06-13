@@ -1170,7 +1170,7 @@ void reset_esp32()
                               // will get reenable when module restart
                               
     // order edge module to restart since network is about to get refreshed
-    char edge_restart_message[20] = "RST";
+    char edge_restart_message[20] = "S";
     uint16_t msg_length = strlen(edge_restart_message);
     broadcast_message(msg_length, (uint8_t *)edge_restart_message);
 

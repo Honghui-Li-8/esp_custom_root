@@ -313,7 +313,7 @@ void app_main(void)
     // turn off log - Important, bc the server counting on uart escape byte 0xff and 0xfe
     //              - So need to enforce all uart traffic
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
-    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {
