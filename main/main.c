@@ -325,7 +325,10 @@ void app_main(void)
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
-    char message[15] = "[R]online\n";
-    uart_sendData(0, (uint8_t *)message, strlen(message));
+    char message[15] = "online\n";
+    uint8_t message_byte[15];
+    message_byte[0] = 0x03; // Root Reset
+    memcpy(message_byte + 1, message, strlen(message));
+    uart_sendData(0, message_byte, strlen(message) + 1);
     printNetworkInfo(); // esp log for debug
 }

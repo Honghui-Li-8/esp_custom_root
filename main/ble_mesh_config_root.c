@@ -1059,6 +1059,11 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr, bool
     ctx.app_idx = ble_mesh_key.app_idx;
     ctx.addr = dst_address;
     ctx.send_ttl = ble_message_ttl;
+    
+    if (require_response)
+    {
+        opcode = ECS_193_MODEL_OP_MESSAGE_R;
+    }
 
     err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, require_response, message_role);
     if (err != ESP_OK) {
