@@ -13,7 +13,7 @@
 
 #define INIT_UUID_MATCH         { 0x32, 0x10 } // regulate the node get provitioned
 
-#define DEFAULT_MSG_SEND_TTL    3 // default value for message ttl, ttl changeable in runtime from command
+#define DEFAULT_MSG_SEND_TTL    2 // default value for message ttl, ttl changeable in runtime from command
 #define MSG_TIMEOUT             0
 #define MSG_ROLE_ROOT           ROLE_PROVISIONER
 #define MSG_ROLE_EDGE           ROLE_NODE
