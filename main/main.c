@@ -32,7 +32,7 @@ static void config_complete_handler(uint16_t node_addr) {
     uint8_t buffer_size = OPCODE_LEN + node_data_size; // 1 byte opcode, 16 byte node_uuid
     uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    buffer_itr[0] = 0x02; // node info
+    buffer[0] = 0x02; // node info
     uint8_t* buffer_itr = buffer + OPCODE_LEN;
     esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
     if (node_ptr == NULL) {
