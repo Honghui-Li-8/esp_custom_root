@@ -61,14 +61,15 @@ static void button_tap_cb(void* arg)
         uint16_t msg_length = strlen(msg);
         send_message(node_addr, msg_length, (uint8_t *)msg, false);
         uart_sendMsg(node_addr, "[Test] Sended Init to Node-6\n");
-        control = 2;
-    } else {
-        char msg[20] = "TS";
-        uint16_t msg_length = strlen(msg);
-        send_message(node_addr, msg_length, (uint8_t *)msg, false);
-        uart_sendMsg(node_addr, "[Test] Sended Start to Node-6\n");
-        control = 0;
+        // control = 2;
     }
+    //  else {
+    //     char msg[20] = "TS";
+    //     uint16_t msg_length = strlen(msg);
+    //     send_message(node_addr, msg_length, (uint8_t *)msg, false);
+    //     uart_sendMsg(node_addr, "[Test] Sended Start to Node-6\n");
+    //     control = 0;
+    // }
 }
 
 static void button_liong_press_cb(void *arg){
