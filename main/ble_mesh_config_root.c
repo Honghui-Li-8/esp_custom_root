@@ -84,12 +84,11 @@ static esp_ble_mesh_model_t root_models[] = {
 #endif
 };
 
-
 static const esp_ble_mesh_client_op_pair_t client_op_pair[] = {
-    { ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE },
-    { ECS_193_MODEL_OP_BROADCAST, ECS_193_MODEL_OP_EMPTY },
-    { ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_EMPTY},
-    { ECS_193_MODEL_OP_SET_TTL, ECS_193_MODEL_OP_EMPTY},
+    {ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE},
+    {ECS_193_MODEL_OP_BROADCAST, ECS_193_MODEL_OP_EMPTY},
+    {ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_RESPONSE},
+    {ECS_193_MODEL_OP_SET_TTL, ECS_193_MODEL_OP_EMPTY},
 };
 
 static esp_ble_mesh_client_t ecs_193_client = {
