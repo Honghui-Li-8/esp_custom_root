@@ -8,7 +8,7 @@
 
 #define TAG_M "MAIN"
 #define TAG_ALL "*"
-#define OPCODE_LEN 3
+#define OPCODE_LEN 1
 #define NODE_ADDR_LEN 2  // can't change bc is base on esp
 #define NODE_UUID_LEN 16 // can't change bc is base on esp
 #define CMD_LEN 5 // network command length - 5 byte
@@ -29,10 +29,10 @@ static void config_complete_handler(uint16_t node_addr) {
     uart_sendMsg(node_addr, " ----------- config_complete -----------\n");
     // 16 byte uuid on node
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
-    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 16 byte node_uuid
+    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 1 byte opcode, 16 byte node_uuid
     uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    memcpy(buffer, "NOD----", OPCODE_LEN); // load 3 byte opcode
+    buffer_itr[0] = 0x02; // node info
     uint8_t* buffer_itr = buffer + OPCODE_LEN;
     esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
     if (node_ptr == NULL) {
@@ -128,7 +128,7 @@ static void send_network_info() {
     uint8_t buffer_size = OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
     uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    memcpy(buffer, "NET---", OPCODE_LEN); // load 3 byte opcode
+    buffer[0] = 0x01; //network info
 
     int node_index = 0;
     while (node_left > 0)
