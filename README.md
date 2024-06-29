@@ -32,13 +32,13 @@ Our ESP32 Root, also called ESP32 Client served as our central network. It is re
 ## Software Components
 - ESP-IDF (Espressif IoT Development Framework)
   - Description: Official development framework for ESP32
-  - Function: Provides libraries and tools for developing applciations on the ESP32
+  - Function: Provides libraries and tools for developing applications on the ESP32
   
 ## Communication Protocols
 [Opcode and other stuff maybe]?
 
 ## Setup and Configuration
-[I (Axel) would put how to setup docker in here later.]
+[I (Axel) would put how to set up docker in here later.]
 
 ## Code Explanation
 ### Code Structure
@@ -86,13 +86,36 @@ The program starts with an initialization phase where hardware and software comp
       void (*connectivity_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
   ) { ... }
   ```
-  Each handler function would be explain in the [Key Components](#key-components) section
+  Each handler function will be explained in the [Key Components](#key-components) section
 
   ```
   This function will return a defined variable called `ESP_OK` every time it is successfully finished. A lot of ESP32 Functions will be returning the same thing, so assume it will return `ESP_OK` unless say otherwise.
 - `ble_mesh_init()` will be continued [here], and this concludes the code flow in `main.c`
 
 ### Key Components
+**prov_complete_handler**
+- Overview: Handler will be triggered when it's done with provisioning an edge
+- Params: 
+**config_complete_handler**
+- Overview: Handler will be triggered when it's done with provisioning an edge
+- Params:
+**recv_message_handler**
+- Overview: Handler will be triggered when it receives an initial message 
+- Params: 
+**recv_response_handler**
+- Overview: Handler will be triggered when it receives a response message
+- Params: 
+**timeout_handler**
+- Overview: Handler will be triggered when a message timeout occurs
+- Params: 
+**broadcast_handler**
+- Overview: Handler will be triggered when a broadcast message happens
+- Params: 
+**connectivity_handler**
+- Overview: Handler will be triggered when a special heartbeat message is sent from edge to root.
+- Params: 
+
+OPTIONAL:
 Explain what defined can off, or how to change the app or net keIDid, or NetworkConfig, or even if they want to add another opcode or something
 
 ### Error Handling
