@@ -4,18 +4,20 @@
 ESP32 Root / Client
 ==================================
 ## Table of Contents
-- [Overview](#overview)
-- [Hardware Components](#hardware-components)
-- [Software Components](#software-components)
-- [Communication Protocols](#communication-protocols)
-- [Setup and Configuration](#setup-and-configuration)
-- [Code Explanation](#code-explanation)
-  - [Code Structure](#code-structure)
-  - [Code Flow](#code-flow)
-  - [Key Components](#key-components)
-  - [Error Handling](#error-handling)
-- [Testing and Troubleshooting](#testing-and-troubleshooting)
-- [References](#references)
+- [ESP32 Root / Client](#esp32-root--client)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Hardware Components](#hardware-components)
+  - [Software Components](#software-components)
+  - [Communication Protocols](#communication-protocols)
+  - [Setup and Configuration](#setup-and-configuration)
+  - [Code Explanation](#code-explanation)
+    - [Code Structure](#code-structure)
+    - [Code Flow](#code-flow)
+    - [Key Components](#key-components)
+    - [Error Handling](#error-handling)
+  - [Testing and Troubleshooting](#testing-and-troubleshooting)
+  - [References](#references)
 
 ## Overview
 Our ESP32 Root, also called ESP32 Client served as our central network. It is responsible for managing and coordinating the edge devices and also ensuring efficient communication and data processing. The ESP32 Root is equipped with WiFi and Bluetooth, but we're focusing more on the BLE Mesh Features. Features that are included are as follows:
@@ -84,31 +86,8 @@ The program starts with an initialization phase where hardware and software comp
       void (*connectivity_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
   ) { ... }
   ```
-- We are also initializing the non-volatile storage flash, Bluetooth, and BLE Mesh.
-  ```c
-  esp_err_t err;
+  Each handler function would be explain in the [Key Components](#key-components) section
 
-  err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
-
-    err = bluetooth_init();
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp32_bluetooth_init failed (err %d)", err);
-        return ESP_FAIL;
-    }
-
-    ble_mesh_get_dev_uuid(dev_uuid);
-
-    /* Initialize the Bluetooth Mesh Subsystem */
-    err = ble_mesh_init();
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
-        return ESP_FAIL;
-    }
   ```
   This function will return a defined variable called `ESP_OK` every time it is successfully finished. A lot of ESP32 Functions will be returning the same thing, so assume it will return `ESP_OK` unless say otherwise.
 - `ble_mesh_init()` will be continued [here], and this concludes the code flow in `main.c`
