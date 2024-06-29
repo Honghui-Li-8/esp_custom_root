@@ -83,7 +83,7 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     ESP_LOGW(TAG_M, "<- Sended Response %d bytes \'%*s\'", response_length, response_length, (char *)response);
 }
 
-static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode) {
     // ESP_LOGI(TAG_M, " ----------- recv_response handler trigered -----------");
     ESP_LOGW(TAG_M, "-> Recived Response \'%s\'", (char*)msg_ptr);
 
