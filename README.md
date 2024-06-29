@@ -71,7 +71,50 @@ The program starts with an initialization phase where hardware and software comp
     board_init();
   ```
   In `line 5`, `esp_module_root_init` is called to initialize the ESP Module which includes multiple functions that are used as callback functions.
+
+- After initializing in `main.c`, it will move to the `ble_mesh_config_root.c`, located in `line 1169`, you can found the `esp_module_root_init` function
+  ```c
+  esp_err_t esp_module_root_init(
+      void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
+      void (*config_complete_handler)(uint16_t addr),
+      void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+      void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+      void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode),
+      void (*broadcast_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+      void (*connectivity_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
+  ) { ... }
+  ```
+- We are also initializing the non-volatile storage flash, Bluetooth, and BLE Mesh.
+  ```c
+  esp_err_t err;
+
+  err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+    err = bluetooth_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp32_bluetooth_init failed (err %d)", err);
+        return ESP_FAIL;
+    }
+
+    ble_mesh_get_dev_uuid(dev_uuid);
+
+    /* Initialize the Bluetooth Mesh Subsystem */
+    err = ble_mesh_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
+        return ESP_FAIL;
+    }
+  ```
+  This function will return a defined variable called `ESP_OK` every time it is successfully finished. A lot of ESP32 Functions will be returning the same thing, so assume it will return `ESP_OK` unless say otherwise.
+- `ble_mesh_init()` will be continued [here], and this concludes the code flow in `main.c`
+
 ### Key Components
+Explain what defined can off, or how to change the app or net keIDid, or NetworkConfig, or even if they want to add another opcode or something
 
 ### Error Handling
 
