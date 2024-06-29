@@ -3,29 +3,43 @@
 
 ESP32 Root / Client
 ==================================
+# Table of Contents
+- [Overview](#overview)
+- [Hardware Components](#hardware-components)
+- [Software Components](#software-components)
+- [Communication Protocols](#communication-protocols)
+- [Setup and Configuration](#setup-and-configuration)
+- [Code Explanation](#code-explanation)
+  - [Code Structure]
+  - [Code Flow]
+  - [Key Components]
+  - [Error Handling]
+- [Testing and Troubleshooting](#testing-and-troubleshooting)
+- [References](#references)
 
-## Overview
+# Overview
 Our ESP32 Root, also called ESP32 Client served as our central network. It is responsible for managing and coordinating the edge devices and also ensuring efficient communication and data processing. The ESP32 Root is equipped with WiFi and Bluetooth, but we're focusing more on the BLE Mesh Features. Features that are included are as follows:
 - Acts as a `main provisioner` for our mesh topology network
 - Manage and handle communication between edge devices (data aggregation)
 - Ability to do `Remote Provision` (provision nodes outside the range of the root)
 - Can act as Non-Volatile or Volatile (Persistent or Non-Persistent Memory)
       
-## Hardware Components
+# Hardware Components
 [not sure if the Custom PCB and the Antenna will be included here or something].
 
-## Software Components
+# Software Components
 - ESP-IDF (Espressif IoT Development Framework)
   - Description: Official development framework for ESP32
   - Function: Provides libraries and tools for developing applciations on the ESP32
   
-## Communication Protocols
+# Communication Protocols
 [Opcode and other stuff maybe]?
-## Setup and Configuration
+
+# Setup and Configuration
 [I (Axel) would put how to setup docker in here later.]
 
-## Code Explanation
-### Code Structure
+# Code Explanation
+## Code Structure
 This repo contained several files and directories, but the important ones will be listed below:
 - **/main:** Contains the main source code files.
   - **ble_meshconfig_edge.c**
@@ -39,7 +53,7 @@ This repo contained several files and directories, but the important ones will b
 - **CMakeList.txt:** Header files and definitions.
 - **sdkconfig.defaults:** Contain ESP Configurations as a default config if no `sdkconfig` exist
 
-### Code Flow
+## Code Flow
 The program starts with an initialization phase where hardware and software components are set up. It then enters the main loop where it continuously monitors and processes data. The program will keep running until it is shut off (via power source), or when it is resetted using the reset button or through a command
 
 - **Initialization** starts in the `main.c` file
@@ -57,10 +71,10 @@ The program starts with an initialization phase where hardware and software comp
     board_init();
   ```
   In `line 5`, `esp_module_root_init` is called to initialize the ESP Module which includes multiple functions that are used as callback functions.
-### Key Components
+## Key Components
 
-### Error Handling
+## Error Handling
 
-## Testing and Troubleshooting
+# Testing and Troubleshooting
 
-## References
+# References
