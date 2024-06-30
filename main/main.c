@@ -64,6 +64,16 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
         return;
     }
 
+    // important retansmit test code -----------------------------------------------
+    if (opcode == ECS_193_MODEL_OP_MESSAGE_I_0) {
+        if (ctx->send_ttl == DEFAULT_MSG_SEND_TTL) {
+            // only response to increased TTL message for testin
+            ESP_LOGE(TAG_M, "Ignoring Important message on first few transmission on purpose for testing, send_ttl:%d recv_ttl:%d",ctx->send_ttl, ctx->recv_ttl);
+            return;
+        }
+    }
+    // important retansmit test code -----------------------------------------------
+
     // send response
     char response[5] = "S";
     uint16_t response_length = strlen(response);
