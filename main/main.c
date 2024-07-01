@@ -53,7 +53,7 @@ static void config_complete_handler(uint16_t node_addr) {
 static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode) {
     // ESP_LOGI(TAG_M, " ----------- recv_message handler trigered -----------");
     uint16_t node_addr = ctx->addr;
-    ESP_LOGW(TAG_M, "-> Received Message \'%s\' from node-%d", (char*)msg_ptr, node_addr);
+    ESP_LOGW(TAG_M, "-> Received Message \'%s\' from node-%d, opcode: [0x%06" PRIx32 "]", (char*)msg_ptr, node_addr, opcode);
 
     // recived a ble-message from edge ndoe
     uart_sendData(node_addr, msg_ptr, length);
@@ -65,12 +65,19 @@ static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, u
     }
 
     // important retansmit test code -----------------------------------------------
-    if (opcode == ECS_193_MODEL_OP_MESSAGE_I_0) {
-        if (ctx->send_ttl == DEFAULT_MSG_SEND_TTL) {
+    if (opcode == ECS_193_MODEL_OP_MESSAGE_I_0 || opcode == ECS_193_MODEL_OP_MESSAGE_I_1 || opcode == ECS_193_MODEL_OP_MESSAGE_I_2) {
+        if (ctx->send_ttl <= DEFAULT_MSG_SEND_TTL) {
             // only response to increased TTL message for testin
             ESP_LOGE(TAG_M, "Ignoring Important message on first few transmission on purpose for testing, send_ttl:%d recv_ttl:%d",ctx->send_ttl, ctx->recv_ttl);
             return;
         }
+
+        ESP_LOGW(TAG_M, "---------- send_ttl:%d recv_ttl:%d default_ttl:%d",ctx->send_ttl,  ctx->recv_ttl, DEFAULT_MSG_SEND_TTL);
+        
+        if ( ctx->recv_ttl <= DEFAULT_MSG_SEND_TTL) {
+            return;
+        }
+        ESP_LOGW(TAG_M, "====----- send_ttl:%d recv_ttl:%d default_ttl:%d",ctx->send_ttl,  ctx->recv_ttl, DEFAULT_MSG_SEND_TTL);
     }
     // important retansmit test code -----------------------------------------------
 
@@ -324,7 +331,7 @@ void app_main(void)
     // turn off log - Important, bc the server counting on uart escape byte 0xff and 0xfe
     //              - So need to enforce all uart traffic
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
-    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {

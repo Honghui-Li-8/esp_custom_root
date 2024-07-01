@@ -4,7 +4,7 @@
 #define TAG_ROOT "ROOT"
 #define ROOT_MODULE // control which module it is
 
-#define ECS_193_CID             0x02FF  // regulate the module connecting
+#define ECS_193_CID             0x0193  // regulate the module connecting
 #define APP_KEY_IDX             0x0000
 #define APP_KEY_OCTET           0x12
 

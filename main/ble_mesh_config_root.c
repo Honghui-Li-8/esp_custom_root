@@ -120,7 +120,7 @@ static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECEIVE
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE_I_2, 1),
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 1),
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_CONNECTIVITY, 1),
-    // ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_SET_TTL, 1), // Root send this, don't receive, put the commented line so is symmetric as edge
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_SET_TTL, 1), // Root send this, don't receive, put the commented line so is symmetric as edge
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -1259,13 +1259,13 @@ void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_p
         break;
 
     default:
-        ESP_LOGE(TAG, "send_response() met invaild Message_Opcode %" PRIu32 ", no corresponding Response_Opcode for it", message_opcode);
+        ESP_LOGE(TAG, "send_response() met invaild Message_Opcode [0x%06" PRIx32 "], no corresponding Response_Opcode for it", message_opcode);
         break;
     }
 
     esp_err_t err;
 
-    ESP_LOGW(TAG, "response opcode: %" PRIu32, response_opcode);
+    ESP_LOGW(TAG, "response opcode: [0x%06" PRIx32 "]", response_opcode);
     ESP_LOGW(TAG, "response net_idx: %" PRIu16, ctx->net_idx);
     ESP_LOGW(TAG, "response app_idx: %" PRIu16, ctx->app_idx);
     ESP_LOGW(TAG, "response addr: %" PRIu16, ctx->addr);
