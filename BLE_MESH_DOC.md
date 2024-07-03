@@ -3,11 +3,11 @@ ESP-IDF BLE MESH Root Documentation
 
 - [ESP-IDF BLE MESH Root Documentation](#esp-idf-ble-mesh-root-documentation)
   - [Overview](#overview)
-  - [Module Initialization](#code-flow)
-  - [BLE client/server Model]
-  - [Custom Opcodes]
-  - [Provisioning Process]
-  - [Messaging Types]
+  - [Module Initialization](#module-initialization)
+  - [BLE Client/Server Model](#ble-clientserver-model)
+  - [Custom Opcodes](#custom-opcodes)
+  - [Provisioning Process](#provisioning-process)
+  - [Message Types](#message-types)
   - [Key Components](#key-components)
     - [`example_ble_mesh_config_client_cb`](#example_ble_mesh_config_client_cb)
     - [`ble_mesh_provisioning_cb`](#ble_mesh_provisioning_cb)
@@ -80,6 +80,14 @@ This markdown file specifically explain the `ble_mesh_config_root.c`.
   - `example_ble_mesh_remote_prov_client_callback`: Deals with remote provisioning client events, enabling remote devices to be provisioned into the mesh network.
   
   For more details about each function, please go to the [Key Components](#key-components) which will explain the inside scope of each function.
+
+## BLE Client/Server Model
+
+## Custom Opcodes
+
+## Provisioning Process
+
+## Message Types
 
 ## Key Components
 ### `example_ble_mesh_config_client_cb`
