@@ -1019,7 +1019,7 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
     }
 }
 
-// ===================== Root Network Utility Functions =====================
+// ===================== Root Network Utility Functions (APIs) =====================
 void set_message_ttl(uint8_t new_ttl) {
     ble_message_ttl = new_ttl;
 }
