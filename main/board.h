@@ -66,9 +66,44 @@
 #define UART_END 0xFE
 
 void board_init(void);
+
+/**
+ * @brief Encoded bytes and write to a UART port.
+ * 
+ * @param uart_num UART port number.
+ * @param data Pointer to the data to be written.
+ * @param length Length of the data.
+ * @return Status of the write operation.
+ */
 int uart_write_encoded_bytes(uart_port_t uart_num, uint8_t* data, size_t length);
+
+/**
+ * @brief Decode bytes from the provided data.
+ * 
+ * @param data Pointer to the encoded data.
+ * @param length Length of the encoded data.
+ * @param decoded_data Pointer to the buffer for the decoded data.
+ * @return Status of the decode operation.
+ */
 int uart_decoded_bytes(uint8_t* data, size_t length, uint8_t* decoded_data);
+
+/**
+ * @brief Send data to a specific node address over UART.
+ * 
+ * @param node_addr Node address to send the data to.
+ * @param data Pointer to the data to be sent.
+ * @param length Length of the data.
+ * @return Status of the send operation.
+ */
 int uart_sendData(uint16_t node_addr, uint8_t* data, size_t length);
+
+/**
+ * @brief Send a message to a specific node address over UART.
+ * 
+ * @param node_addr Node address to send the message to.
+ * @param msg Pointer to the message to be sent.
+ * @return Status of the send operation.
+ */
 int uart_sendMsg(uint16_t node_addr, char* msg);
 
 #endif /* _BOARD_H_ */

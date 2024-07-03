@@ -3,7 +3,11 @@ ESP-IDF BLE MESH Root Documentation
 
 - [ESP-IDF BLE MESH Root Documentation](#esp-idf-ble-mesh-root-documentation)
   - [Overview](#overview)
-  - [Code Flow](#code-flow)
+  - [Module Initialization](#code-flow)
+  - [BLE client/server Model]
+  - [Custom Opcodes]
+  - [Provisioning Process]
+  - [Messaging Types]
   - [Key Components](#key-components)
     - [`example_ble_mesh_config_client_cb`](#example_ble_mesh_config_client_cb)
     - [`ble_mesh_provisioning_cb`](#ble_mesh_provisioning_cb)
@@ -14,7 +18,7 @@ ESP-IDF BLE MESH Root Documentation
 ## Overview
 This markdown file specifically explain the `ble_mesh_config_root.c`. 
 
-## Code Flow
+## Module Initialization
 - Coming from `main.c`, we first start `esp_module_root_init`, attachign all the application level callback. We then check if all the callback function are passed on without any fails
   ```c
   if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL || broadcast_handler_cb == NULL || connectivity_handler_cb == NULL || config_complete_handler_cb == NULL) {
