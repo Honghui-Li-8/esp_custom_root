@@ -10,7 +10,7 @@
     "ble_mesh_config_root.h": "c",
     "iot_button.h": "c"
   },
-  "idf.portWin": "COM6",
+  "idf.portWin": "COM8",
   "idf.flashType": "UART",
   "idf.port": "/dev/ttyUSB0"
 }

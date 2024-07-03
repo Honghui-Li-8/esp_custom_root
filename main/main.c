@@ -8,7 +8,7 @@
 
 #define TAG_M "MAIN"
 #define TAG_ALL "*"
-#define OPCODE_LEN 3
+#define OPCODE_LEN 1
 #define NODE_ADDR_LEN 2  // can't change bc is base on esp
 #define NODE_UUID_LEN 16 // can't change bc is base on esp
 #define CMD_LEN 5 // network command length - 5 byte
@@ -19,20 +19,22 @@
 #define CMD_CLEAN_NETWORK_CONFIG "CLEAN"
 
 /***************** Event Handler *****************/
+// prov_complete_handler() get triger when a new node is provitioned to the network
 static void prov_complete_handler(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t node_addr, uint8_t element_num, uint16_t net_idx) {
     ESP_LOGI(TAG_M, " ----------- prov_complete handler trigered -----------");
     uart_sendMsg(node_addr, " ----------- prov_complete -----------\n");
 }
 
+// config_complete_handler() get triger when a new node is configured successfully after provitioning
 static void config_complete_handler(uint16_t node_addr) {
     ESP_LOGI(TAG_M,  " ----------- Node-0x%04x config_complete -----------", node_addr);
     uart_sendMsg(node_addr, " ----------- config_complete -----------\n");
     // 16 byte uuid on node
     uint8_t node_data_size = NODE_ADDR_LEN + NODE_UUID_LEN; // node_addr + node_uuid size
-    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 3 byte opcode, 16 byte node_uuid
+    uint8_t buffer_size = OPCODE_LEN + node_data_size; // 1 byte opcode, 16 byte node_uuid
     uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    memcpy(buffer, "NOD----", OPCODE_LEN); // load 3 byte opcode
+    buffer[0] = 0x02; // node info
     uint8_t* buffer_itr = buffer + OPCODE_LEN;
     esp_ble_mesh_node_t *node_ptr = esp_ble_mesh_provisioner_get_node_with_addr(node_addr);
     if (node_ptr == NULL) {
@@ -50,46 +52,72 @@ static void config_complete_handler(uint16_t node_addr) {
     printNetworkInfo(); // esp log for debug
 }
 
-static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+// recv_message_handler() get triger when module recived an message
+static void recv_message_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode) {
     // ESP_LOGI(TAG_M, " ----------- recv_message handler trigered -----------");
     uint16_t node_addr = ctx->addr;
-    ESP_LOGW(TAG_M, "-> Received Message \'%s\' from node-%d", (char*)msg_ptr, node_addr);
+    ESP_LOGW(TAG_M, "-> Received Message \'%s\' from node-%d, opcode: [0x%06" PRIx32 "]", (char*)msg_ptr, node_addr, opcode);
 
     // recived a ble-message from edge ndoe
-    // ========== potential special case ==========
-    if (strncmp((char*)msg_ptr, "Special Case", 12) == 0) {
-        // place holder for special case that need to be handled in esp-root module
-        // handle locally
-        char response[5] = "S";
-        uint16_t response_length = strlen(response);
-        send_response(ctx, response_length, (uint8_t*) response);
-        ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
+    uart_sendData(node_addr, msg_ptr, length);
+
+    // check if needs an response to confirm recived
+    if (opcode == ECS_193_MODEL_OP_MESSAGE) {
+        // only normal message no need for response
+        return;
     }
-    
-    // ========== General case, pass up to APP level ==========
-    // pass node_addr & data to network server through uart
-    else {
-        uart_sendData(node_addr, msg_ptr, length);
+
+    // important retansmit test code -----------------------------------------------
+    if (opcode == ECS_193_MODEL_OP_MESSAGE_I_0 || opcode == ECS_193_MODEL_OP_MESSAGE_I_1 || opcode == ECS_193_MODEL_OP_MESSAGE_I_2) {
+        if (ctx->send_ttl <= DEFAULT_MSG_SEND_TTL) {
+            // only response to increased TTL message for testin
+            ESP_LOGE(TAG_M, "Ignoring Important message on first few transmission on purpose for testing, send_ttl:%d recv_ttl:%d",ctx->send_ttl, ctx->recv_ttl);
+            return;
+        }
+
+        ESP_LOGW(TAG_M, "---------- send_ttl:%d recv_ttl:%d default_ttl:%d",ctx->send_ttl,  ctx->recv_ttl, DEFAULT_MSG_SEND_TTL);
+        
+        if ( ctx->recv_ttl <= DEFAULT_MSG_SEND_TTL) {
+            return;
+        }
+        ESP_LOGW(TAG_M, "====----- send_ttl:%d recv_ttl:%d default_ttl:%d",ctx->send_ttl,  ctx->recv_ttl, DEFAULT_MSG_SEND_TTL);
     }
+    // important retansmit test code -----------------------------------------------
 
     // send response
     char response[5] = "S";
     uint16_t response_length = strlen(response);
-    send_response(ctx, response_length, (uint8_t *) response);
-    ESP_LOGW(TAG_M, "<- Sended Response \'%s\'", (char*) response);
+    send_response(ctx, response_length, (uint8_t *)response, opcode);
+    ESP_LOGW(TAG_M, "<- Sended Response %d bytes \'%*s\'", response_length, response_length, (char *)response);
 }
 
-static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
+// recv_response_handler() get triger when module recived an response to previouse sent message that requires an response
+static void recv_response_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode) {
     // ESP_LOGI(TAG_M, " ----------- recv_response handler trigered -----------");
     ESP_LOGW(TAG_M, "-> Recived Response \'%s\'", (char*)msg_ptr);
-
+    
+    // clear confirmed recived important message
+    int8_t index = get_important_message_index(opcode);
+    if (index != -1) {
+        // resend the important message
+        ESP_LOGW(TAG_M, "Confirm delivered on Important Message, index: %d", index);
+        clear_important_message(index);
+    }
 }
 
+// timeout_handler() get triger when module previously sent an message that requires response but didn't receive response
 static void timeout_handler(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) {
     ESP_LOGI(TAG_M, " ----------- timeout handler trigered -----------");
     
+    // cehck for retransmition
+    int8_t index = get_important_message_index(opcode);
+    if (index != -1) {
+        // resend the important message
+        retransmit_important_message(ctx, opcode, index);
+    }
 }
 
+// broadcast_handler() get triger when module recived an broadcast message
 static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     if (ctx->addr == PROV_OWN_ADDR) {
         // uart_sendMsg(0, "Broadcasted");
@@ -104,12 +132,13 @@ static void broadcast_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint
     uart_sendData(node_addr, msg_ptr, length);
 }
 
+// connectivity_handler() get triger when module recived an connectivity check message (heartbeat message)
 static void connectivity_handler(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) {
     ESP_LOGI(TAG_M, "----- Connectivity Handler Triggered -----\n");
 
     char response[3] = "S";
     uint16_t response_length = strlen(response);
-    send_response(ctx, response_length, (uint8_t *)response);
+    send_response(ctx, response_length, (uint8_t *)response, ECS_193_MODEL_OP_CONNECTIVITY);
 }
 
 /***************** Other Functions *****************/
@@ -124,7 +153,7 @@ static void send_network_info() {
     uint8_t buffer_size = OPCODE_LEN + 1 + 40 * node_data_size; // 3 byte opcode, 1 byte node amount, up to 40 node
     uint8_t* buffer = (uint8_t*) malloc(buffer_size * sizeof(uint8_t));
 
-    memcpy(buffer, "NET---", OPCODE_LEN); // load 3 byte opcode
+    buffer[0] = 0x01; //network info
 
     int node_index = 0;
     while (node_left > 0)
@@ -198,7 +227,8 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
             return;
         }
 
-        uint16_t node_addr_network_order = (uint16_t)((address_start[0] << 8) | address_start[1]);
+        uint16_t node_addr_network_order = 0;
+        memcpy(&node_addr_network_order, address_start, 2);
         uint16_t node_addr = ntohs(node_addr_network_order);
         if (node_addr == 0)
         {
@@ -206,7 +236,7 @@ static void execute_uart_command(char* command, size_t cmd_total_len) {
         }
         
         ESP_LOGI(TAG_E, "Sending message to address-%d ...", node_addr);
-        send_message(node_addr, msg_length, (uint8_t *) msg_start);
+        send_message(node_addr, msg_length, (uint8_t *) msg_start, false);
         ESP_LOGW(TAG_M, "<- Sended Message [%s]", (char *)msg_start);
     } 
     else if (strncmp(command, CMD_BROADCAST_MSG, CMD_LEN) == 0) {
@@ -308,7 +338,7 @@ void app_main(void)
     // turn off log - Important, bc the server counting on uart escape byte 0xff and 0xfe
     //              - So need to enforce all uart traffic
     //              - use uart_sendMsg or uart_sendData for message, the esp_log for dev debug
-    esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
+    // esp_log_level_set(TAG_ALL, ESP_LOG_NONE);
     
     esp_err_t err = esp_module_root_init(prov_complete_handler, config_complete_handler, recv_message_handler, recv_response_handler, timeout_handler, broadcast_handler, connectivity_handler);
     if (err != ESP_OK) {
@@ -320,7 +350,10 @@ void app_main(void)
     board_init();
     xTaskCreate(rx_task, "uart_rx_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
-    char message[15] = "[R]online\n";
-    uart_sendData(0, (uint8_t *)message, strlen(message));
+    char message[15] = "online\n";
+    uint8_t message_byte[15];
+    message_byte[0] = 0x03; // Root Reset
+    memcpy(message_byte + 1, message, strlen(message));
+    uart_sendData(0, message_byte, strlen(message) + 1);
     printNetworkInfo(); // esp log for debug
 }
