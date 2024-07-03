@@ -1,15 +1,28 @@
-ESP-IDF BLE MESH Documentation
+ESP-IDF BLE MESH Root Documentation
 ==================================
 
-- [ESP-IDF BLE MESH Documentation](#esp-idf-ble-mesh-documentation)
+- [ESP-IDF BLE MESH Root Documentation](#esp-idf-ble-mesh-root-documentation)
   - [Overview](#overview)
   - [Code Flow](#code-flow)
+  - [Key Components](#key-components)
+    - [`example_ble_mesh_config_client_cb`](#example_ble_mesh_config_client_cb)
+    - [`ble_mesh_provisioning_cb`](#ble_mesh_provisioning_cb)
+    - [`ble_mesh_custom_model_cb`](#ble_mesh_custom_model_cb)
+    - [`example_ble_mesh_remote_prov_client_callback`](#example_ble_mesh_remote_prov_client_callback)
+  - [References](#references)
 
 ## Overview
 This markdown file specifically explain the `ble_mesh_config_root.c`. 
 
 ## Code Flow
-- We are also initializing the non-volatile storage flash, Bluetooth, and BLE Mesh.
+- Coming from `main.c`, we first start `esp_module_root_init`, attachign all the application level callback. We then check if all the callback function are passed on without any fails
+  ```c
+  if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL || broadcast_handler_cb == NULL || connectivity_handler_cb == NULL || config_complete_handler_cb == NULL) {
+      ESP_LOGE(TAG, "Application Level Callback functin is NULL");
+      return ESP_FAIL;
+  }
+  ```
+- We then intialize the non-volatile storage flash, Bluetooth, and BLE Mesh.
   ```c
   esp_err_t err;
 
@@ -61,4 +74,17 @@ This markdown file specifically explain the `ble_mesh_config_root.c`.
   - `ble_mesh_provisioning_cb`: Manages provisioning events, including provisioning start, complete, and failure events.
   - `ble_mesh_custom_model_cb`: Processes events related to custom BLE mesh models.
   - `example_ble_mesh_remote_prov_client_callback`: Deals with remote provisioning client events, enabling remote devices to be provisioned into the mesh network.
+  
   For more details about each function, please go to the [Key Components](#key-components) which will explain the inside scope of each function.
+
+## Key Components
+### `example_ble_mesh_config_client_cb`
+
+
+### `ble_mesh_provisioning_cb`
+### `ble_mesh_custom_model_cb`
+### `example_ble_mesh_remote_prov_client_callback`
+
+[Others], not sure if the client_op, server_op, and etc should be explain here or not.
+
+## References
