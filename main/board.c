@@ -17,7 +17,7 @@
 #define TAG_B "BOARD"
 #define TAG_W "Debug"
 
-extern void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr);
+extern void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr, bool require_response);
 extern void example_ble_mesh_send_remote_provisioning_scan_start(void);
 
 static void uart_init() {  // Uart ===========================================================
@@ -57,18 +57,19 @@ static void button_tap_cb(void* arg)
     //     control = 1;
     // }else 
     if (control == 1) {
-        char msg[20] = "TSTITEST0";
+        char msg[20] = "TI0";
         uint16_t msg_length = strlen(msg);
-        send_message(node_addr, msg_length, (uint8_t *)msg);
+        send_message(node_addr, msg_length, (uint8_t *)msg, false);
         uart_sendMsg(node_addr, "[Test] Sended Init to Node-6\n");
-        control = 2;
-    } else {
-        char msg[20] = "TSTS";
-        uint16_t msg_length = strlen(msg);
-        send_message(node_addr, msg_length, (uint8_t *)msg);
-        uart_sendMsg(node_addr, "[Test] Sended Start to Node-6\n");
-        control = 0;
+        // control = 2;
     }
+    //  else {
+    //     char msg[20] = "TS";
+    //     uint16_t msg_length = strlen(msg);
+    //     send_message(node_addr, msg_length, (uint8_t *)msg, false);
+    //     uart_sendMsg(node_addr, "[Test] Sended Start to Node-6\n");
+    //     control = 0;
+    // }
 }
 
 static void button_liong_press_cb(void *arg){

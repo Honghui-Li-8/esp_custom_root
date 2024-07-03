@@ -14,11 +14,15 @@
 
 
 static bool provision_enable = true;
+static uint8_t** important_message_data_list = NULL;
+static uint16_t important_message_data_lengths[] = {0, 0, 0};
+static uint8_t important_message_retransmit_times[] = {0, 0, 0};
 
-//maybe i'll move it to networkConfig.h
+//maybe will move it to networkConfig.h, TB Finish
 #define COMP_DATA_1_OCTET(msg, offset)      (msg[offset])
 #define COMP_DATA_2_OCTET(msg, offset)      (msg[offset + 1] << 8 | msg[offset])
 
+// =============== Provisioner (Root) Configuration ===============
 static uint8_t remote_dev_uuid_match[2] = INIT_UUID_MATCH;
 static uint16_t cur_rpr_cli_opcode;
 static uint16_t remote_rpr_srv_addr = 0;
@@ -52,7 +56,10 @@ static esp_ble_mesh_node_info_t nodes[CONFIG_BLE_MESH_MAX_PROV_NODES] = {
 // static nvs_handle_t NVS_HANDLE;
 // static const char * NVS_KEY = NVS_KEY_ROOT;
 
+
+// =============== Line Sync with Edge Code for future readers ===============
 #define MSG_ROLE MSG_ROLE_ROOT
+static uint8_t ble_message_ttl = DEFAULT_MSG_SEND_TTL;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -62,7 +69,7 @@ static esp_ble_mesh_cfg_srv_t config_server = {
 #else
     .friend_state = ESP_BLE_MESH_FRIEND_NOT_SUPPORTED,
 #endif
-    .default_ttl = 7,
+    .default_ttl = DEFAULT_MSG_SEND_TTL,
     /* 3 transmissions with 20ms interval */
     .net_transmit = ESP_BLE_MESH_TRANSMIT(2, 20),
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
@@ -81,11 +88,15 @@ static esp_ble_mesh_model_t root_models[] = {
 #endif
 };
 
-
 static const esp_ble_mesh_client_op_pair_t client_op_pair[] = {
-    { ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_RESPONSE },
-    { ECS_193_MODEL_OP_BROADCAST, NULL },
-    { ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_RESPONSE},
+    {ECS_193_MODEL_OP_MESSAGE, ECS_193_MODEL_OP_EMPTY},
+    {ECS_193_MODEL_OP_MESSAGE_R, ECS_193_MODEL_OP_RESPONSE},
+    {ECS_193_MODEL_OP_MESSAGE_I_0, ECS_193_MODEL_OP_RESPONSE_I_0},
+    {ECS_193_MODEL_OP_MESSAGE_I_1, ECS_193_MODEL_OP_RESPONSE_I_1},
+    {ECS_193_MODEL_OP_MESSAGE_I_2, ECS_193_MODEL_OP_RESPONSE_I_2},
+    {ECS_193_MODEL_OP_BROADCAST, ECS_193_MODEL_OP_EMPTY},
+    {ECS_193_MODEL_OP_CONNECTIVITY, ECS_193_MODEL_OP_RESPONSE},
+    {ECS_193_MODEL_OP_SET_TTL, ECS_193_MODEL_OP_EMPTY},
 };
 
 static esp_ble_mesh_client_t ecs_193_client = {
@@ -93,16 +104,23 @@ static esp_ble_mesh_client_t ecs_193_client = {
     .op_pair = client_op_pair,
 };
 
-
 static esp_ble_mesh_model_op_t client_op[] = { // operation client will "RECEIVED"
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE_I_0, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE_I_1, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_RESPONSE_I_2, 1),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
 static esp_ble_mesh_model_op_t server_op[] = { // operation server will "RECEIVED"
-    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE, 2),
-    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 2),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE_R, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE_I_0, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE_I_1, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_MESSAGE_I_2, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_BROADCAST, 1),
     ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_CONNECTIVITY, 1),
+    ESP_BLE_MESH_MODEL_OP(ECS_193_MODEL_OP_SET_TTL, 1), // Root send this, don't receive, put the commented line so is symmetric as edge
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -138,46 +156,17 @@ static esp_ble_mesh_prov_t provision = {
 };
 
 
-// -------------------- application level callback functions ------------------
+// ================= application level callback functions =================
 static void (*prov_complete_handler_cb)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx) = NULL;
 static void (*config_complete_handler_cb)(uint16_t addr) = NULL;
-static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
-static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
+static void (*recv_message_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode) = NULL;
+static void (*recv_response_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode) = NULL;
 static void (*timeout_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode) = NULL;
 static void (*broadcast_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 static void (*connectivity_handler_cb)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr) = NULL;
 
-//-------------------- Network Utility Functions ----------------
-void printNetworkInfo()
-{
-    ESP_LOGW(TAG, "----------- Current Network Info--------------");
-    uint16_t node_count = esp_ble_mesh_provisioner_get_prov_node_count();
-
-    ESP_LOGI(TAG_INFO, "Node Count: %d\n\n", node_count);
-    const esp_ble_mesh_node_t **nodeTableEntry = esp_ble_mesh_provisioner_get_node_table_entry();
-
-    // Iterate over each node in the table
-    for (int i = 0; i < node_count; i++)
-    {
-        const esp_ble_mesh_node_t *node = nodeTableEntry[i];
-
-        char uuid_str[(16 * 2) + 1]; // Static buffer to hold the string representation
-        for (int i = 0; i < 16; i++)
-        {
-            sprintf(&uuid_str[i * 2], "%02X", node->dev_uuid[i]); // Convert each byte of the UUID to hexadecimal and store it in the string
-        }
-        uuid_str[16 * 2] = '\0';
-
-        ESP_LOGI(TAG_INFO, "Node Name: %s", node->name);
-        ESP_LOGI(TAG_INFO, "     Address: %hu", node->unicast_addr);
-        ESP_LOGI(TAG_INFO, "     uuid: %s", uuid_str);
-    }
-
-    ESP_LOGW(TAG, "----------- End of Network Info --------------");
-}
-
-static esp_err_t example_ble_mesh_store_node_info(const uint8_t uuid[16], uint16_t unicast,
-                                                  uint8_t elem_num)
+// ====================== ROOT Core Network Functions ======================
+static esp_err_t example_ble_mesh_store_node_info(const uint8_t uuid[16], uint16_t unicast, uint8_t elem_num)
 {
     int i;
 
@@ -225,55 +214,19 @@ static esp_ble_mesh_node_info_t *example_ble_mesh_get_node_info(uint16_t unicast
     return NULL;
 }
 
-
-static esp_err_t ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,
-                                            uint16_t unicast,
-                                            esp_ble_mesh_model_t *model, uint32_t opcode)
+static esp_err_t ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,uint16_t unicast, esp_ble_mesh_model_t *model, uint32_t opcode)
 {
     common->opcode = opcode;
     common->model = model;
     common->ctx.net_idx = ble_mesh_key.net_idx;
     common->ctx.app_idx = ble_mesh_key.app_idx;
     common->ctx.addr = unicast;
-    common->ctx.send_ttl = MSG_SEND_TTL;
+    common->ctx.send_ttl = ble_message_ttl;
     common->msg_timeout = MSG_TIMEOUT;
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
     common->msg_role = MSG_ROLE_ROOT;
 #endif
     return ESP_OK;
-}
-
-static void prov_link_open(esp_ble_mesh_prov_bearer_t bearer)
-{
-    ESP_LOGI(TAG, "%s link open", bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT");
-}
-
-static void prov_link_close(esp_ble_mesh_prov_bearer_t bearer, uint8_t reason)
-{
-    ESP_LOGI(TAG, "%s link close, reason 0x%02x",
-             bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT", reason);
-}
-
-void example_ble_mesh_send_remote_provisioning_scan_start(void)
-{
-
-    esp_ble_mesh_client_common_param_t common = {0};
-    esp_err_t err = ESP_OK;
-
-    if (!remote_rpr_srv_addr) {
-        ESP_LOGE(TAG, "No valid remote provisioning server address");
-        return;
-    }
-
-    /* Send a ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET to get the scan status of remote provisioning server */
-    ESP_LOGI(TAG, "Sending a Scan status of remote provisioning server");
-    ESP_LOGI(TAG, "Remote Provisioning Server Addr: %d", remote_rpr_srv_addr);
-    ble_mesh_set_msg_common(&common, remote_rpr_srv_addr, remote_prov_client.model, ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET);
-    err = esp_ble_mesh_rpr_client_send(&common, NULL);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to send Remote Provisioning Client msg: Scan Get");
-    }
-    cur_rpr_cli_opcode = ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET;
 }
 
 static void example_ble_mesh_parse_node_comp_data(esp_ble_mesh_node_info_t* node, const uint8_t *data, uint16_t length)
@@ -370,133 +323,41 @@ static void example_ble_mesh_parse_node_comp_data(esp_ble_mesh_node_info_t* node
     ESP_LOGI(TAG, "*********************** Composition Data End ***********************");
 }
 
-
-static esp_err_t config_complete(esp_ble_mesh_msg_ctx_t ctx) {
-
-    u_int16_t node_addr = ctx.addr;
-    config_complete_handler_cb(node_addr);
-    return ESP_OK;
-}
-
-static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
-                                              esp_ble_mesh_cfg_client_cb_param_t *param)
+// Provisioning functions
+static void prov_link_open(esp_ble_mesh_prov_bearer_t bearer)
 {
-    esp_ble_mesh_client_common_param_t common = {0};
-    esp_ble_mesh_cfg_client_set_state_t set = {0};
-    esp_ble_mesh_node_info_t *node = NULL;
-    esp_err_t err;
-
-    ESP_LOGI(TAG, "Config client, err_code %d, event %u, addr 0x%04x, opcode 0x%04" PRIx32,
-        param->error_code, event, param->params->ctx.addr, param->params->opcode);
-
-    if (param->error_code) {
-        ESP_LOGE(TAG, "Send config client message failed, opcode 0x%04" PRIx32, param->params->opcode);
-        return;
-    }
-
-    node = example_ble_mesh_get_node_info(param->params->ctx.addr);
-    if (!node) {
-        ESP_LOGE(TAG, "%s: Get node info failed", __func__);
-        return;
-    }
-
-    switch (event) {
-    case ESP_BLE_MESH_CFG_CLIENT_GET_STATE_EVT:
-        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET) {
-            ESP_LOGI(TAG, "composition data %s", bt_hex(param->status_cb.comp_data_status.composition_data->data,
-                    param->status_cb.comp_data_status.composition_data->len));
-            example_ble_mesh_parse_node_comp_data(node, param->status_cb.comp_data_status.composition_data->data,
-                                                        param->status_cb.comp_data_status.composition_data->len);
-
-            //not sure if i need this or not?
-            err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
-                param->status_cb.comp_data_status.composition_data->data,
-                param->status_cb.comp_data_status.composition_data->len);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to store node composition data");
-                break;
-            }
-
-            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
-            set.app_key_add.net_idx = ble_mesh_key.net_idx;
-            set.app_key_add.app_idx = ble_mesh_key.app_idx;
-            memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
-            err = esp_ble_mesh_config_client_set_state(&common, &set);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to send Config AppKey Add");
-            }
-        }
-        break;
-    case ESP_BLE_MESH_CFG_CLIENT_SET_STATE_EVT:
-        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD) {
-            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
-            set.model_app_bind.element_addr = node->unicast;
-            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
-            set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
-            set.model_app_bind.company_id = ECS_193_CID;
-            err = esp_ble_mesh_config_client_set_state(&common, &set);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to send Config Model App Bind");
-            }
-        } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND) {
-            ESP_LOGI(TAG, "The Remote Provisioning Server have been provisioned, You could click button to start remote provisioning");
-            remote_rpr_srv_addr = param->params->ctx.addr;
-            ESP_LOGW(TAG, "%s, Provision and config successfully", __func__);
-            config_complete(param->params->ctx);
-        }
-        break;
-    case ESP_BLE_MESH_CFG_CLIENT_PUBLISH_EVT:
-        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_STATUS) {
-            ESP_LOG_BUFFER_HEX("Composition data", param->status_cb.comp_data_status.composition_data->data,
-                param->status_cb.comp_data_status.composition_data->len);
-        }
-        break;
-    case ESP_BLE_MESH_CFG_CLIENT_TIMEOUT_EVT:
-        switch (param->params->opcode) {
-        case ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET: {
-            esp_ble_mesh_cfg_client_get_state_t get = {0};
-            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
-            get.comp_data_get.page = COMP_DATA_PAGE_0;
-            err = esp_ble_mesh_config_client_get_state(&common, &get);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
-            }
-            break;
-        }
-        case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
-            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
-            set.app_key_add.net_idx = ble_mesh_key.net_idx;
-            set.app_key_add.app_idx = ble_mesh_key.app_idx;
-            memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
-            err = esp_ble_mesh_config_client_set_state(&common, &set);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to send Config AppKey Add");
-            }
-            break;
-        case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
-            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
-            set.model_app_bind.element_addr = param->params->ctx.addr;
-            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
-            set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
-            set.model_app_bind.company_id = ECS_193_CID;
-            err = esp_ble_mesh_config_client_set_state(&common, &set);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to send Config Model App Bind");
-            }
-            break;
-        default:
-            break;
-        }
-        break;
-    default:
-        ESP_LOGE(TAG, "Invalid config client event %u", event);
-        break;
-    }
+    ESP_LOGI(TAG, "%s link open", bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT");
 }
 
-//-------------------- ROOT Network Functions ----------------
-static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t uuid,
-                               uint16_t primary_addr, uint8_t element_num, uint16_t net_idx)
+static void prov_link_close(esp_ble_mesh_prov_bearer_t bearer, uint8_t reason)
+{
+    ESP_LOGI(TAG, "%s link close, reason 0x%02x",
+             bearer == ESP_BLE_MESH_PROV_ADV ? "PB-ADV" : "PB-GATT", reason);
+}
+
+void example_ble_mesh_send_remote_provisioning_scan_start(void)
+{
+
+    esp_ble_mesh_client_common_param_t common = {0};
+    esp_err_t err = ESP_OK;
+
+    if (!remote_rpr_srv_addr) {
+        ESP_LOGE(TAG, "No valid remote provisioning server address");
+        return;
+    }
+
+    /* Send a ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET to get the scan status of remote provisioning server */
+    ESP_LOGI(TAG, "Sending a Scan status of remote provisioning server");
+    ESP_LOGI(TAG, "Remote Provisioning Server Addr: %d", remote_rpr_srv_addr);
+    ble_mesh_set_msg_common(&common, remote_rpr_srv_addr, remote_prov_client.model, ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET);
+    err = esp_ble_mesh_rpr_client_send(&common, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send Remote Provisioning Client msg: Scan Get");
+    }
+    cur_rpr_cli_opcode = ESP_BLE_MESH_MODEL_OP_RPR_SCAN_GET;
+}
+
+static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t primary_addr, uint8_t element_num, uint16_t net_idx)
 {
     // Root Module only, intiate configuration of edge node
     esp_ble_mesh_client_common_param_t common = {0};
@@ -545,9 +406,8 @@ static esp_err_t prov_complete(uint16_t node_index, const esp_ble_mesh_octet16_t
     return ESP_OK;
 }
 
-static void recv_unprov_adv_pkt(uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN], uint8_t addr[BD_ADDR_LEN],
-                                esp_ble_mesh_addr_type_t addr_type, uint16_t oob_info,
-                                uint8_t adv_type, esp_ble_mesh_prov_bearer_t bearer)
+static void recv_unprov_adv_pkt(uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN], uint8_t addr[BD_ADDR_LEN], esp_ble_mesh_addr_type_t addr_type, 
+                                uint16_t oob_info, uint8_t adv_type, esp_ble_mesh_prov_bearer_t bearer)
 {
     esp_ble_mesh_unprov_dev_add_t add_dev = {0};
     esp_err_t err;
@@ -576,8 +436,7 @@ static void recv_unprov_adv_pkt(uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN], uint
     }
 }
 
-static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
-                                             esp_ble_mesh_prov_cb_param_t *param)
+static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event, esp_ble_mesh_prov_cb_param_t *param)
 { 
     if (!provision_enable) {
         // diabled provisioning
@@ -655,47 +514,7 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_ble_mesh_model_cb_param_t *param)
-{
-    // static int64_t start_time;
-
-    switch (event) {
-    case ESP_BLE_MESH_MODEL_OPERATION_EVT:
-        if (param->model_operation.opcode == ECS_193_MODEL_OP_MESSAGE) {
-            recv_message_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
-        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_RESPONSE) {
-            recv_response_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
-        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_BROADCAST) {
-            broadcast_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
-        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_CONNECTIVITY) {
-            connectivity_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
-        }
-        
-        break;
-    case ESP_BLE_MESH_MODEL_SEND_COMP_EVT:
-        if (param->model_send_comp.err_code) {
-            ESP_LOGE(TAG, "Failed to send message 0x%06" PRIx32, param->model_send_comp.opcode);
-            break;
-        }
-        // start_time = esp_timer_get_time();
-        ESP_LOGI(TAG, "Send opcode [0x%06" PRIx32 "] completed", param->model_send_comp.opcode);
-        break;
-    case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
-
-        ESP_LOGI(TAG, "Receive publish message 0x%06" PRIx32, param->client_recv_publish_msg.opcode);
-        break;
-    case ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT:
-        ESP_LOGW(TAG, "Client message 0x%06" PRIx32 " timeout", param->client_send_timeout.opcode);
-        timeout_handler_cb(param->client_send_timeout.ctx, param->client_send_timeout. opcode);
-        break;
-    default:
-        ESP_LOGE(TAG, "Uncaught Event");
-        break;
-    }
-}
-
-static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client_cb_event_t event,
-                                                         esp_ble_mesh_rpr_client_cb_param_t *param)
+static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client_cb_event_t event, esp_ble_mesh_rpr_client_cb_param_t *param)
 {
     static uint8_t remote_dev_uuid[16] = {0};
     esp_ble_mesh_rpr_client_msg_t msg = {0};
@@ -1021,7 +840,191 @@ static void example_ble_mesh_remote_prov_client_callback(esp_ble_mesh_rpr_client
     }
 }
 
-void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
+// Configuration functions
+static esp_err_t config_complete(esp_ble_mesh_msg_ctx_t ctx) {
+
+    u_int16_t node_addr = ctx.addr;
+    config_complete_handler_cb(node_addr);
+    return ESP_OK;
+}
+
+static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event, esp_ble_mesh_cfg_client_cb_param_t *param)
+{
+    esp_ble_mesh_client_common_param_t common = {0};
+    esp_ble_mesh_cfg_client_set_state_t set = {0};
+    esp_ble_mesh_node_info_t *node = NULL;
+    esp_err_t err;
+
+    ESP_LOGI(TAG, "Config client, err_code %d, event %u, addr 0x%04x, opcode 0x%04" PRIx32,
+        param->error_code, event, param->params->ctx.addr, param->params->opcode);
+
+    if (param->error_code) {
+        ESP_LOGE(TAG, "Send config client message failed, opcode 0x%04" PRIx32, param->params->opcode);
+        return;
+    }
+
+    node = example_ble_mesh_get_node_info(param->params->ctx.addr);
+    if (!node) {
+        ESP_LOGE(TAG, "%s: Get node info failed", __func__);
+        return;
+    }
+
+    switch (event) {
+    case ESP_BLE_MESH_CFG_CLIENT_GET_STATE_EVT:
+        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET) {
+            ESP_LOGI(TAG, "composition data %s", bt_hex(param->status_cb.comp_data_status.composition_data->data,
+                    param->status_cb.comp_data_status.composition_data->len));
+            example_ble_mesh_parse_node_comp_data(node, param->status_cb.comp_data_status.composition_data->data,
+                                                        param->status_cb.comp_data_status.composition_data->len);
+
+            //not sure if i need this or not?
+            err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
+                param->status_cb.comp_data_status.composition_data->data,
+                param->status_cb.comp_data_status.composition_data->len);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to store node composition data");
+                break;
+            }
+
+            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
+            set.app_key_add.net_idx = ble_mesh_key.net_idx;
+            set.app_key_add.app_idx = ble_mesh_key.app_idx;
+            memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
+            err = esp_ble_mesh_config_client_set_state(&common, &set);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to send Config AppKey Add");
+            }
+        }
+        break;
+    case ESP_BLE_MESH_CFG_CLIENT_SET_STATE_EVT:
+        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD) {
+            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
+            set.model_app_bind.element_addr = node->unicast;
+            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
+            set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
+            set.model_app_bind.company_id = ECS_193_CID;
+            err = esp_ble_mesh_config_client_set_state(&common, &set);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to send Config Model App Bind");
+            }
+        } else if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND) {
+            ESP_LOGI(TAG, "The Remote Provisioning Server have been provisioned, You could click button to start remote provisioning");
+            remote_rpr_srv_addr = param->params->ctx.addr;
+            ESP_LOGW(TAG, "%s, Provision and config successfully", __func__);
+            config_complete(param->params->ctx);
+        }
+        break;
+    case ESP_BLE_MESH_CFG_CLIENT_PUBLISH_EVT:
+        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_STATUS) {
+            ESP_LOG_BUFFER_HEX("Composition data", param->status_cb.comp_data_status.composition_data->data,
+                param->status_cb.comp_data_status.composition_data->len);
+        }
+        break;
+    case ESP_BLE_MESH_CFG_CLIENT_TIMEOUT_EVT:
+        switch (param->params->opcode) {
+        case ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET: {
+            esp_ble_mesh_cfg_client_get_state_t get = {0};
+            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
+            get.comp_data_get.page = COMP_DATA_PAGE_0;
+            err = esp_ble_mesh_config_client_get_state(&common, &get);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to send Config Composition Data Get");
+            }
+            break;
+        }
+        case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
+            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD);
+            set.app_key_add.net_idx = ble_mesh_key.net_idx;
+            set.app_key_add.app_idx = ble_mesh_key.app_idx;
+            memcpy(set.app_key_add.app_key, ble_mesh_key.app_key, ESP_BLE_MESH_OCTET16_LEN);
+            err = esp_ble_mesh_config_client_set_state(&common, &set);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to send Config AppKey Add");
+            }
+            break;
+        case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
+            ble_mesh_set_msg_common(&common, param->params->ctx.addr, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND);
+            set.model_app_bind.element_addr = param->params->ctx.addr;
+            set.model_app_bind.model_app_idx = ble_mesh_key.app_idx;
+            set.model_app_bind.model_id = ECS_193_MODEL_ID_SERVER;
+            set.model_app_bind.company_id = ECS_193_CID;
+            err = esp_ble_mesh_config_client_set_state(&common, &set);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to send Config Model App Bind");
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    default:
+        ESP_LOGE(TAG, "Invalid config client event %u", event);
+        break;
+    }
+}
+
+// Custom Model callback logic
+static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_ble_mesh_model_cb_param_t *param)
+{
+    // static int64_t start_time;
+
+    switch (event) {
+    case ESP_BLE_MESH_MODEL_OPERATION_EVT:
+        switch (param->model_operation.opcode) {
+            case ECS_193_MODEL_OP_MESSAGE:
+            case ECS_193_MODEL_OP_MESSAGE_R:
+            case ECS_193_MODEL_OP_MESSAGE_I_0:
+            case ECS_193_MODEL_OP_MESSAGE_I_1:
+            case ECS_193_MODEL_OP_MESSAGE_I_2:
+                recv_message_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg, param->model_operation.opcode);
+                break;
+
+            case ECS_193_MODEL_OP_RESPONSE:
+            case ECS_193_MODEL_OP_RESPONSE_I_0:
+            case ECS_193_MODEL_OP_RESPONSE_I_1:
+            case ECS_193_MODEL_OP_RESPONSE_I_2:
+                recv_response_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg, param->model_operation.opcode);
+                break;
+            
+            default:
+                break;
+        }
+        
+        if (param->model_operation.opcode == ECS_193_MODEL_OP_BROADCAST) {
+            broadcast_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
+        } else if (param->model_operation.opcode == ECS_193_MODEL_OP_CONNECTIVITY) {
+            connectivity_handler_cb(param->model_operation.ctx, param->model_operation.length, param->model_operation.msg);
+        }
+        
+        break;
+    case ESP_BLE_MESH_MODEL_SEND_COMP_EVT:
+        if (param->model_send_comp.err_code) {
+            ESP_LOGE(TAG, "Failed to send message 0x%06" PRIx32, param->model_send_comp.opcode);
+            break;
+        }
+        // start_time = esp_timer_get_time();
+        ESP_LOGI(TAG, "Send opcode [0x%06" PRIx32 "] completed", param->model_send_comp.opcode);
+        break;
+    case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
+
+        ESP_LOGI(TAG, "Receive publish message 0x%06" PRIx32, param->client_recv_publish_msg.opcode);
+        break;
+    case ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT:
+        ESP_LOGW(TAG, "Client message 0x%06" PRIx32 " timeout", param->client_send_timeout.opcode);
+        timeout_handler_cb(param->client_send_timeout.ctx, param->client_send_timeout. opcode);
+        break;
+    default:
+        ESP_LOGE(TAG, "Uncaught Event");
+        break;
+    }
+}
+
+// ===================== Root Network Utility Functions =====================
+void set_message_ttl(uint8_t new_ttl) {
+    ble_message_ttl = new_ttl;
+}
+
+void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr, bool require_response)
 {
     esp_ble_mesh_msg_ctx_t ctx = {0};
     uint32_t opcode = ECS_193_MODEL_OP_MESSAGE;
@@ -1045,10 +1048,14 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
     ctx.addr = dst_address;
-    ctx.send_ttl = MSG_SEND_TTL;
-    
+    ctx.send_ttl = ble_message_ttl;
 
-    err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, true, message_role);
+    if (require_response)
+    {
+        opcode = ECS_193_MODEL_OP_MESSAGE_R;
+    }
+
+    err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, require_response, message_role);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send message to node addr 0x%04x", dst_address);
         uart_sendMsg(dst_address, "Failed to send to Node\n");
@@ -1056,6 +1063,118 @@ void send_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr)
     }
 
     // ESP_LOGW(TAG, "Message [%s] sended to [0x%04x]", (char*) data_ptr, dst_address);
+}
+
+void send_important_message(uint16_t dst_address, uint16_t length, uint8_t *data_ptr) {
+    int index = -1;
+    
+    for (int i=0; i<3; i++) {
+        if (important_message_data_list[i] == NULL) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        ESP_LOGW(TAG, "Too many on tracking important message, failed to add one more");
+        return;
+    }
+
+    // send message
+    esp_ble_mesh_msg_ctx_t ctx = {0};
+    uint32_t opcode = ECS_193_MODEL_OP_MESSAGE;
+    esp_ble_mesh_dev_role_t message_role = MSG_ROLE;
+    esp_err_t err = ESP_OK;
+
+    ctx.net_idx = ble_mesh_key.net_idx;
+    ctx.app_idx = ble_mesh_key.app_idx;
+    ctx.addr = dst_address;
+    ctx.send_ttl = ble_message_ttl;
+    
+    if (index == 0) {
+        opcode = ECS_193_MODEL_OP_MESSAGE_I_0;
+    } else if (index == 1) {
+        opcode = ECS_193_MODEL_OP_MESSAGE_I_1;
+    } else if (index == 2) {
+        opcode = ECS_193_MODEL_OP_MESSAGE_I_2;
+    } else {
+        ESP_LOGW(TAG, "Error Index: [%d] for important messasge", index);
+        return;
+    }
+
+    // save the important message incase of need for resend
+    important_message_data_list[index] = (uint8_t*) malloc(length * sizeof(uint8_t));
+    important_message_data_lengths[index] = length;
+    important_message_retransmit_times[index] = 0;
+    
+    if (important_message_data_list[index] == NULL) {
+        ESP_LOGW(TAG, "Failed to allocate [%d] bytes for important messasge", length);
+        return;
+    }
+    memcpy(important_message_data_list[index], data_ptr, length);
+    
+    err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, 
+        important_message_data_lengths[index], important_message_data_list[index], 
+        MSG_TIMEOUT, true, message_role);
+    
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send important message to node addr 0x%04x, err_code %d", dst_address, err);
+        return;
+    }
+}
+
+int8_t get_important_message_index(uint32_t opcode) {
+    int8_t index = -1;
+    if (opcode == ECS_193_MODEL_OP_MESSAGE_I_0) {
+        index = 0;
+    } else if (opcode == ECS_193_MODEL_OP_MESSAGE_I_1) {
+        index = 1;
+    } else if (opcode == ECS_193_MODEL_OP_MESSAGE_I_2) {
+        index = 2;
+    }
+
+    return index;
+}
+
+void retransmit_important_message(esp_ble_mesh_msg_ctx_t* ctx_ptr, uint32_t opcode, int8_t index) {
+    important_message_retransmit_times[index] += 1; // increment retransmit times count
+
+    if (important_message_retransmit_times[index] > 3) {
+        ESP_LOGW(TAG, "Error Index: [%d] for retransmiting important messasge", index);
+    }
+
+    // retransmit message
+    uint8_t tll_increment = important_message_retransmit_times[index] / 2; // add 1 more ttl per 2 times retransmit to limit ttl
+    ctx_ptr->send_ttl = ble_message_ttl + tll_increment;
+
+    esp_err_t err = ESP_OK;
+    err = esp_ble_mesh_client_model_send_msg(client_model, ctx_ptr, opcode, 
+        important_message_data_lengths[index], important_message_data_list[index], 
+        MSG_TIMEOUT, true, MSG_ROLE);
+    
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to retransmit important message to node addr 0x%04x, err_code %d", ctx_ptr->addr, err);
+        ESP_LOGI(TAG, "clearing important_message, index: %d", index);
+        clear_important_message(index);
+        return;
+    }
+}
+
+void clear_important_message(int8_t index) {
+    if (index < 0 || index > 2) {
+        ESP_LOGE(TAG, "Invaild index recived in clear_important_message(), index: %d", index);
+        return;
+    } else if (important_message_data_list[index] == NULL) {
+        ESP_LOGE(TAG, "Clearning an unused important message slot, index: %d", index);
+        return;
+    }
+
+    free(important_message_data_list[index]);
+
+    important_message_data_list[index] = NULL;
+    important_message_data_lengths[index] = 0;
+    important_message_retransmit_times[index] = 0;
+    ESP_LOGI(TAG, "Important_message slot cleared, index: %d", index);
 }
 
 void broadcast_message(uint16_t length, uint8_t *data_ptr)
@@ -1072,7 +1191,7 @@ void broadcast_message(uint16_t length, uint8_t *data_ptr)
     ctx.net_idx = ble_mesh_key.net_idx;
     ctx.app_idx = ble_mesh_key.app_idx;
     ctx.addr = 0xFFFF;
-    ctx.send_ttl = MSG_SEND_TTL;
+    ctx.send_ttl = ble_message_ttl;
     
 
     err = esp_ble_mesh_client_model_send_msg(client_model, &ctx, opcode, length, data_ptr, MSG_TIMEOUT, false, message_role);
@@ -1082,19 +1201,43 @@ void broadcast_message(uint16_t length, uint8_t *data_ptr)
     }
 }
 
-void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_ptr)
+void send_response(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *data_ptr, uint32_t message_opcode)
 {
-    uint32_t opcode = ECS_193_MODEL_OP_RESPONSE;
+    uint32_t response_opcode = ECS_193_MODEL_OP_RESPONSE;
+    switch (message_opcode)
+    {
+    case ECS_193_MODEL_OP_MESSAGE_R:
+        response_opcode = ECS_193_MODEL_OP_RESPONSE;
+        break;
+    case ECS_193_MODEL_OP_MESSAGE_I_0:
+        response_opcode = ECS_193_MODEL_OP_RESPONSE_I_0;
+        break;
+    case ECS_193_MODEL_OP_MESSAGE_I_1:
+        response_opcode = ECS_193_MODEL_OP_RESPONSE_I_1;
+        break;
+    case ECS_193_MODEL_OP_MESSAGE_I_2:
+        response_opcode = ECS_193_MODEL_OP_RESPONSE_I_2;
+        break;
+    case ECS_193_MODEL_OP_CONNECTIVITY:
+        response_opcode = ECS_193_MODEL_OP_RESPONSE;
+        break;
+
+    default:
+        ESP_LOGE(TAG, "send_response() met invaild Message_Opcode [0x%06" PRIx32 "], no corresponding Response_Opcode for it", message_opcode);
+        break;
+    }
+
     esp_err_t err;
 
-    // ESP_LOGW(TAG, "response net_idx: %" PRIu16, ctx->net_idx);
-    // ESP_LOGW(TAG, "response app_idx: %" PRIu16, ctx->app_idx);
-    // ESP_LOGW(TAG, "response addr: %" PRIu16, ctx->addr);
-    // ESP_LOGW(TAG, "response recv_dst: %" PRIu16, ctx->recv_dst);
+    ESP_LOGW(TAG, "response opcode: [0x%06" PRIx32 "]", response_opcode);
+    ESP_LOGW(TAG, "response net_idx: %" PRIu16, ctx->net_idx);
+    ESP_LOGW(TAG, "response app_idx: %" PRIu16, ctx->app_idx);
+    ESP_LOGW(TAG, "response addr: %" PRIu16, ctx->addr);
+    ESP_LOGW(TAG, "response recv_dst: %" PRIu16, ctx->recv_dst);
 
-    err = esp_ble_mesh_server_model_send_msg(server_model, ctx, opcode, length, data_ptr);
+    err = esp_ble_mesh_server_model_send_msg(server_model, ctx, response_opcode, length, data_ptr);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to send message to node addr 0x%04x", ctx->addr);
+        ESP_LOGE(TAG, "Failed to send response to node addr 0x%04x, err_code %d", ctx->addr, err);
         return;
     }
 }
@@ -1154,7 +1297,7 @@ void reset_esp32()
                               // will get reenable when module restart
                               
     // order edge module to restart since network is about to get refreshed
-    char edge_restart_message[20] = "RST";
+    char edge_restart_message[20] = "S";
     uint16_t msg_length = strlen(edge_restart_message);
     broadcast_message(msg_length, (uint8_t *)edge_restart_message);
 
@@ -1162,15 +1305,47 @@ void reset_esp32()
     // erase the persistent memory
     esp_err_t error = ESP_OK;
     error = esp_ble_mesh_provisioner_direct_erase_settings();
+
+    if (error != ESP_OK) {
+        uart_sendMsg(0, "Error: Failed to reset Persistent Memory.\n");
+    }
 #endif /* CONFIG_BLE_MESH_SETTINGS */
     uart_sendMsg(0, "Persistent Memory Reseted, Should Restart Module Later\n");
+}
+
+void printNetworkInfo()
+{
+    ESP_LOGW(TAG, "----------- Current Network Info--------------");
+    uint16_t node_count = esp_ble_mesh_provisioner_get_prov_node_count();
+
+    ESP_LOGI(TAG_INFO, "Node Count: %d\n\n", node_count);
+    const esp_ble_mesh_node_t **nodeTableEntry = esp_ble_mesh_provisioner_get_node_table_entry();
+
+    // Iterate over each node in the table
+    for (int i = 0; i < node_count; i++)
+    {
+        const esp_ble_mesh_node_t *node = nodeTableEntry[i];
+
+        char uuid_str[(16 * 2) + 1]; // Static buffer to hold the string representation
+        for (int i = 0; i < 16; i++)
+        {
+            sprintf(&uuid_str[i * 2], "%02X", node->dev_uuid[i]); // Convert each byte of the UUID to hexadecimal and store it in the string
+        }
+        uuid_str[16 * 2] = '\0';
+
+        ESP_LOGI(TAG_INFO, "Node Name: %s", node->name);
+        ESP_LOGI(TAG_INFO, "     Address: %hu", node->unicast_addr);
+        ESP_LOGI(TAG_INFO, "     uuid: %s", uuid_str);
+    }
+
+    ESP_LOGW(TAG, "----------- End of Network Info --------------");
 }
 
 esp_err_t esp_module_root_init(
     void (*prov_complete_handler)(uint16_t node_index, const esp_ble_mesh_octet16_t uuid, uint16_t addr, uint8_t element_num, uint16_t net_idx),
     void (*config_complete_handler)(uint16_t addr),
-    void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
-    void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
+    void (*recv_message_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode),
+    void (*recv_response_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr, uint32_t opcode),
     void (*timeout_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint32_t opcode),
     void (*broadcast_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr),
     void (*connectivity_handler)(esp_ble_mesh_msg_ctx_t *ctx, uint16_t length, uint8_t *msg_ptr)
@@ -1220,6 +1395,14 @@ esp_err_t esp_module_root_init(
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
         return ESP_FAIL;
+    }
+
+    if (important_message_data_list == NULL) {
+        important_message_data_list = (uint8_t**) malloc(3 * sizeof(uint8_t*));
+        for (int i=0; i<3; i++) {
+            important_message_data_list[i] = NULL;
+            important_message_retransmit_times[i] = 0;
+        }
     }
 
     return ESP_OK;
