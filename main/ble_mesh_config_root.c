@@ -877,7 +877,6 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
             example_ble_mesh_parse_node_comp_data(node, param->status_cb.comp_data_status.composition_data->data,
                                                         param->status_cb.comp_data_status.composition_data->len);
 
-            //not sure if i need this or not?
             err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
                 param->status_cb.comp_data_status.composition_data->data,
                 param->status_cb.comp_data_status.composition_data->len);
