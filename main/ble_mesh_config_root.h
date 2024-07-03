@@ -99,7 +99,9 @@ void retransmit_important_message(esp_ble_mesh_msg_ctx_t* ctx_ptr, uint32_t opco
 void clear_important_message(int8_t index);
 
 /**
- * @brief Reset the module and Erase persistent memeory if persistent memeory is enabled
+ * @brief Reset the module and Erase persistent memeory if persistent memeory is enabled.
+ * 
+ *  This function does not restart the module!
  */
 void reset_esp32();
 
