@@ -3,7 +3,11 @@ ESP-IDF BLE MESH Root Documentation
 
 - [ESP-IDF BLE MESH Root Documentation](#esp-idf-ble-mesh-root-documentation)
   - [Overview](#overview)
-  - [Code Flow](#code-flow)
+  - [Module Initialization](#module-initialization)
+  - [BLE Client/Server Model](#ble-clientserver-model)
+  - [Custom Opcodes](#custom-opcodes)
+  - [Provisioning Process](#provisioning-process)
+  - [Message Types](#message-types)
   - [Key Components](#key-components)
     - [`example_ble_mesh_config_client_cb`](#example_ble_mesh_config_client_cb)
     - [`ble_mesh_provisioning_cb`](#ble_mesh_provisioning_cb)
@@ -14,7 +18,7 @@ ESP-IDF BLE MESH Root Documentation
 ## Overview
 This markdown file specifically explain the `ble_mesh_config_root.c`. 
 
-## Code Flow
+## Module Initialization
 - Coming from `main.c`, we first start `esp_module_root_init`, attachign all the application level callback. We then check if all the callback function are passed on without any fails
   ```c
   if (prov_complete_handler_cb == NULL || recv_message_handler_cb == NULL || recv_response_handler_cb == NULL || timeout_handler_cb == NULL || broadcast_handler_cb == NULL || connectivity_handler_cb == NULL || config_complete_handler_cb == NULL) {
@@ -77,14 +81,91 @@ This markdown file specifically explain the `ble_mesh_config_root.c`.
   
   For more details about each function, please go to the [Key Components](#key-components) which will explain the inside scope of each function.
 
+## BLE Client/Server Model
+
+## Custom Opcodes
+
+## Provisioning Process
+
+## Message Types
+
 ## Key Components
 ### `example_ble_mesh_config_client_cb`
 
+**Overview**
+
+This function (`example_ble_mesh_config_client_cb`) is a callback handler for handling events and parameters related to the Bluetooth Low Energy (BLE) Mesh configuration client. It manages various configuration operations such as retrieving composition data, adding application keys, and binding models.
+
+**Functionality**
+
+The function is designed to handle different events (`ESP_BLE_MESH_CFG_CLIENT_*_EVT`) and perform corresponding actions based on the received parameters (`esp_ble_mesh_cfg_client_cb_param_t`). Key functionalities include:
+
+- Retrieving and parsing composition data.
+- Storing node composition data if successful.
+- Adding application keys and binding models as part of configuration.
+
+**Integration**
+
+To integrate this function into your BLE Mesh application, follow these steps:
+
+1. **Initialization**: Ensure the BLE Mesh configuration client is properly initialized and registered with the appropriate models.
+
+2. **Callback Registration**: Register this function as the callback handler for configuration client events (`ESP_BLE_MESH_CFG_CLIENT_EVT`).
+
+3. **Handling Events**: Handle events (`ESP_BLE_MESH_CFG_CLIENT_*_EVT`) within this function by checking the event type (`event`) and executing corresponding logic based on `param`.
 
 ### `ble_mesh_provisioning_cb`
+
+**Overview**
+
+This function (`ble_mesh_provisioning_cb`) is a callback handler for handling events and parameters related to the Bluetooth Low Energy (BLE) Mesh provisioning process. It manages various provisioning events such as receiving unprovisioned device advertisements, provisioning completion, and link management.
+
+**Functionality**
+
+The function is designed to handle different provisioning events (`ESP_BLE_MESH_PROVISIONER_*_EVT`) and perform corresponding actions based on the received parameters (`esp_ble_mesh_prov_cb_param_t`). Key functionalities include:
+
+- Handling the completion of the provisioning process.
+- Receiving unprovisioned device advertisements.
+- Managing provisioning links (open and close).
+- Adding and binding local application keys to models.
+- Storing node composition data.
+
+**Integration**
+
+To integrate this function into your BLE Mesh application, follow these steps:
+
+1. **Initialization**: Ensure the BLE Mesh provisioning functionality is properly initialized and the provisioning is enabled (`provision_enable`).
+
+2. **Callback Registration**: Register this function as the callback handler for provisioning events (`ESP_BLE_MESH_PROV_EVT`).
+
+3. **Handling Events**: Handle events (`ESP_BLE_MESH_PROVISIONER_*_EVT`) within this function by checking the event type (`event`) and executing corresponding logic based on `param`.
+
 ### `ble_mesh_custom_model_cb`
+
+
 ### `example_ble_mesh_remote_prov_client_callback`
 
-[Others], not sure if the client_op, server_op, and etc should be explain here or not.
+**Overview**
+
+This function (`example_ble_mesh_remote_prov_client_callback`) is a callback handler for handling events and parameters related to the Bluetooth Low Energy (BLE) Mesh Remote Provisioning Client. It manages various remote provisioning events such as sending and receiving messages, handling link operations, and completing provisioning.
+
+**Functionality**
+
+The function handles different remote provisioning client events (`ESP_BLE_MESH_RPR_CLIENT_*_EVT`) and performs corresponding actions based on the received parameters (`esp_ble_mesh_rpr_client_cb_param_t`). Key functionalities include:
+
+- Handling the completion of remote provisioning client message sending and timeouts.
+- Managing received publication and response messages from the remote provisioning server.
+- Handling remote provisioning scan and link operations.
+- Completing the provisioning process and closing links.
+
+**Integration**
+
+To integrate this function into your BLE Mesh application, follow these steps:
+
+1. **Initialization**: Ensure the BLE Mesh Remote Provisioning Client functionality is properly initialized and the callback function is registered.
+
+2. **Callback Registration**: Register this function as the callback handler for remote provisioning client events (`ESP_BLE_MESH_RPR_CLIENT_EVT`).
+
+3. **Handling Events**: Handle events (`ESP_BLE_MESH_RPR_CLIENT_*_EVT`) within this function by checking the event type (`event`) and executing corresponding logic based on `param`.
 
 ## References

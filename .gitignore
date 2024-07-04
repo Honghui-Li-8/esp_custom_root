@@ -1,1 +1,10 @@
 build/
+dependencies.lock
+sdkconfig
+sdkconfig.ci.bluedroid
+sdkconfig.ci.bluedroid_deinit
+sdkconfig.ci.model
+sdkconfig.ci.nimble
+sdkconfig.ci.nimble_deinit
+sdkconfig.defaults.esp32c6
+sdkconfig.old
