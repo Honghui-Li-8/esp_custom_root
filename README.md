@@ -96,14 +96,13 @@ The program starts with an initialization phase where hardware and software comp
 In this section, we will be explaining some core components that are in `main.c` or our overall project
 
 First is the callback function that we have in `main.c`. Each function will have a description explaining its purpose, the parameters that are passed to it, and when/why it is triggered.
-
-**prov_complete_handler**
-**config_complete_handler**
-**recv_message_handler**
-**recv_response_handler**
-**timeout_handler**
-**broadcast_handler**
-**connectivity_handler**
+- **prov_complete_handler**
+- **config_complete_handler**
+- **recv_message_handler**
+- **recv_response_handler**
+- **timeout_handler**
+- **broadcast_handler**
+- **connectivity_handler**
 
 OPTIONAL:
 Explain what defined can off, or how to change the app or net keIDid, or NetworkConfig, or even if they want to add another opcode or something
