@@ -1,4 +1,5 @@
 build/
+dependencies.lock
 sdkconfig
 sdkconfig.ci.bluedroid
 sdkconfig.ci.bluedroid_deinit

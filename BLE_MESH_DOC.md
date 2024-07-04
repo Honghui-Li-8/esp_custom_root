@@ -168,7 +168,4 @@ To integrate this function into your BLE Mesh application, follow these steps:
 
 3. **Handling Events**: Handle events (`ESP_BLE_MESH_RPR_CLIENT_*_EVT`) within this function by checking the event type (`event`) and executing corresponding logic based on `param`.
 
-
-[Others], not sure if the client_op, server_op, and etc should be explain here or not.
-
 ## References
