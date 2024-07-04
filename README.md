@@ -10,6 +10,7 @@ ESP32 Root Network Module
   - [Hardware Components](#hardware-components)
   - [Software Components](#software-components)
   - [Setup and Configuration](#setup-and-configuration)
+    - [1. Downloading ESP-IDF Extension on VSCode](#1-downloading-esp-idf-extension-on-vscode)
   - [Communication Protocols](#communication-protocols)
   - [Code Structure](#code-structure)
   - [Code Flow](#code-flow)
@@ -18,6 +19,7 @@ ESP32 Root Network Module
     - [3) Network Command Execution](#3-network-command-execution)
     - [4) Event Handler](#4-event-handler)
   - [Error Handling](#error-handling)
+    - [Error Handling](#error-handling-1)
   - [Testing and Troubleshooting](#testing-and-troubleshooting)
   - [References](#references)
 
@@ -38,11 +40,7 @@ The ESP32 Root Module served as the Initializer to the ble-mesh Network. It is r
 [not sure if the Custom PCB and the Antenna will be included here or something].
 
 ## Software Components
-<<<<<<< HEAD
-- ESP-IDF v 5.2.0 (Espressif IoT Development Framework)
-=======
 - ESP-IDF version 5.2.0 (Espressif IoT Development Framework)
->>>>>>> a0aaf3ecff9a12af5b1149bc8b3b4676bef58996
   - Description: Official development framework for ESP32
   - Function: Provides libraries and tools for developing applications on the ESP32
     - Build, Flash, Monitor, etc.
@@ -127,8 +125,6 @@ Each handler function will get trigers by corresponding event [link here](#event
 - broadcast_handler
 - connectivity_handler
 
-
-<<<<<<< HEAD
 ## Error Handling
 =======
 First is the callback function that we have in `main.c`. Each function will have a description explaining its purpose, the parameters that are passed to it, and when/why it is triggered.
@@ -144,7 +140,6 @@ OPTIONAL:
 Explain what defined can off, or how to change the app or net keIDid, or NetworkConfig, or even if they want to add another opcode or something
 
 ### Error Handling
->>>>>>> a0aaf3ecff9a12af5b1149bc8b3b4676bef58996
 
 ## Testing and Troubleshooting
 
