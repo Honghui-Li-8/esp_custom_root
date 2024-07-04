@@ -30,7 +30,7 @@ Our ESP32 Root, also called ESP32 Client served as our central network. It is re
 [not sure if the Custom PCB and the Antenna will be included here or something].
 
 ## Software Components
-- ESP-IDF (Espressif IoT Development Framework)
+- ESP-IDF version 5.2.0 (Espressif IoT Development Framework)
   - Description: Official development framework for ESP32
   - Function: Provides libraries and tools for developing applications on the ESP32
   
@@ -98,52 +98,12 @@ In this section, we will be explaining some core components that are in `main.c`
 First is the callback function that we have in `main.c`. Each function will have a description explaining its purpose, the parameters that are passed to it, and when/why it is triggered.
 
 **prov_complete_handler**
-- Overview: Triggered when provisioning an edge node is complete.
-- Params:
-  - `node_index`: Index of the provisioned node.
-  - `uuid`: UUID of the provisioned node.
-  - `addr`: Address assigned to the provisioned node.
-  - `element_num`: Number of elements in the provisioned node.
-  - `net_idx`: Network index used for provisioning.
-
 **config_complete_handler**
-- Overview: Handler will be triggered when it's done with provisioning an edge
-- Params:
-  - `addr`: Address assigned to the provisioned node.
-
 **recv_message_handler**
-- Overview: Handler will be triggered when it receives an initial message 
-- Params:
-  - `ctx`: Message context containing message metadata.
-  - `length`: Length of the received message.
-  - `msg_ptr`: Pointer to the received message data.
-
 **recv_response_handler**
-- Overview: Handler will be triggered when it receives a response message
-- Params: 
-  - `ctx`: Message context containing message metadata.
-  - `length`: Length of the received message.
-  - `msg_ptr`: Pointer to the received message data.
-
 **timeout_handler**
-- Overview: Handler will be triggered when a message timeout occurs
-- Params: 
-  - `ctx`: Message context containing message metadata.
-  - `opcode`: Opcode of the timed-out message.
-
 **broadcast_handler**
-- Overview: Handler will be triggered when a broadcast message happens
-- Params: 
-  - `ctx`: Message context containing message metadata.
-  - `length`: Length of the received message.
-  - `msg_ptr`: Pointer to the received message data.
-
 **connectivity_handler**
-- Overview: Handler will be triggered when a special heartbeat message is sent from edge to root.
-- Params: 
-  - `ctx`: Message context containing message metadata.
-  - `length`: Length of the received message.
-  - `msg_ptr`: Pointer to the received message data.
 
 OPTIONAL:
 Explain what defined can off, or how to change the app or net keIDid, or NetworkConfig, or even if they want to add another opcode or something
