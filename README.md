@@ -10,7 +10,8 @@ ESP32 Root Network Module
   - [Hardware Components](#hardware-components)
   - [Software Components](#software-components)
   - [Setup and Configuration](#setup-and-configuration)
-    - [1. Downloading ESP-IDF Extension on VSCode](#1-downloading-esp-idf-extension-on-vscode)
+    - [1. Downloading ESP-IDF Extension on VSCode (*Recommended*)](#1-downloading-esp-idf-extension-on-vscode-recommended)
+    - [2. Using Docker Images on ESP-IDF](#2-using-docker-images-on-esp-idf)
   - [Communication Protocols](#communication-protocols)
   - [Code Structure](#code-structure)
   - [Code Flow](#code-flow)
@@ -49,10 +50,25 @@ The ESP32 Root Module served as the Initializer to the ble-mesh Network. It is r
 ## Setup and Configuration
 In this section, we will be explaining 2 ways on using our program, specifically ESP-IDF.
 
-### 1. Downloading ESP-IDF Extension on VSCode
+### 1. Downloading ESP-IDF Extension on VSCode (*Recommended*)
 - Make sure you have [VS Code](https://code.visualstudio.com/download), it can be any operating system, or any version of VS Code.
-- The next step is to download ESP-IDF Extension on VSCode. Th
-a s'er
+- The next step is to download ESP-IDF Extension on VSCode. There are steps
+on using ESP-IDF Extension in this [link](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/install.md)
+- **P.S. Make sure the ESP-IDF version is 5.2.0, without this version, our code would not be able to run.**
+- Once you have follow the steps on installing ESP-IDF, you are ready to `build`, `flash`, and `monitor`.
+- **P.S. If you are on windows, you need to install a driver to establish a serial connection with the ESP32 Board. You can find it on this [website](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/establish-serial-connection.html). The author use the `CP210x USB to UART Bridge Drivers` to connect the windows port to the ESP32.**
+
+### 2. Using Docker Images on ESP-IDF
+- If you don't want to download ESP-IDF Extension, you can also use a Docker Image to `build` and `flash` the program. However, this only works in `Linux` system since you need a port number that's connected to the ESP32 when `flashing`
+- The steps are as follows:
+  1. Make sure you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) downloaded and running in the background 
+  2. Go to the terminal, and go to the project directory. (If you want to make sure you are in your project directory, you can write `${PWD}`, if this returns the project directory, that means you're in the right palce)
+  3. Run `docker run --rm -v ${PWD}:/project -w /project -e HOME=/tmp espressif/idf:v5.2 idf.py build`
+  4. Once it's done building, then you can run `docker run --rm -v ${PWD}:/project -w /project -e HOME=/tmp espressif/idf:v5.2 idf.py -p -PORT flash`. to flash to a ESP32 Board
+
+  The `-PORT` you can change it to the port you're ESP32 is connected to, for example `/dev/ttyS5`. For more information on the docker image ESP32, click [here](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-docker-image.html)
+
+  Also, after you're done flashing, you could also write `idf.py monitor --no-reset -p -PORT`. For more information, you can check [here](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-monitor.html)
   
 ## Communication Protocols
 [Network commands from uart]?
