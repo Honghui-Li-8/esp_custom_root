@@ -133,11 +133,11 @@ esp_err_t esp_module_root_init(
 Each handler function will get trigers by corresponding event [link here](#event-handler)
 
 ### 2) UART Channel Logic Flow
-The module communicate with central pc via usb-uart port.
+The module communicate with central PC via usb-uart port.
 
-1. `UART byte encoding` - To ensure the message bytes' integrity, message encoding was applied to add `\0xFF` and `\0xFE` speical bytes at the begining and end of an uart message. Also the messagebyte encoding was applied to encode all bytes >= `\0xFA` into 2 byte with xor gate to reserve all bytes > `\0xFA` as speical bytes. Uart encoding, decoding, and write functions is defined in `board.h` file with detield explainatiion.
+1. `UART byte encoding` - To ensure the message bytes' integrity, message encoding was applied to add `\0xFF` and `\0xFE` speical bytes at the begining and end of an uart message. Also the message byte encoding was applied to encode all bytes >= `\0xFA` into 2 byte with xor gate to reserve all bytes > `\0xFA` as speical bytes. Uart encoding, decoding, and write functions is defined in `board.h` file with detailed explainatiion.
 
-2. `UART channle listening thread` - The function `rx_task()` on main.c defines the uart signal handling logic. It create an infniate scaning loop to check uart buffer's data avalibility. Once the scaner read in datas, it passes to `uart_task_handler()` to scan for message start byte `\0xFF` and message end byte `\0xFE` to locate the message then decode the messsage and invoke `execute_uart_command()` to parse and execute the message recived.
+2. `UART channel listening thread` - The function `rx_task()` on main.c defines the uart signal handling logic. It create an infinite scanning loop to check uart buffer's data avalaibility. Once the scanner read in datas, it passes to `uart_task_handler()` to scan for message start byte `\0xFF` and message end byte `\0xFE` to locate the message then decode the messsage and invoke `execute_uart_command()` to parse and execute the message received.
 
 3. `execute_uart_command()` - This function responsible for executing commands from application level such as `BCAST`, `SEND-`, and etc. The module able to be extended for custom command by adding a case in this function.
 
