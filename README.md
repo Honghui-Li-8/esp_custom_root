@@ -15,11 +15,11 @@ ESP32 Root Network Module
   - [Code Structure](#code-structure)
   - [Code Flow](#code-flow)
     - [1) Initialization](#1-initialization)
-    - [2) UART Channel Managing](#2-uart-channel-managing)
-    - [3) Network Command Execution](#3-network-command-execution)
-    - [4) Event Handler](#4-event-handler)
-  - [Error Handling](#error-handling)
-    - [Error Handling](#error-handling-1)
+    - [2) UART Channel Logic Flow](#2-uart-channel-logic-flow)
+    - [3) Network Commands - UART incoming](#3-network-commands---uart-incoming)
+    - [4) Module to App level - UART outgoing](#4-module-to-app-level---uart-outgoing)
+    - [5) Event Handler](#5-event-handler)
+    - [Error Handling](#error-handling)
   - [Testing and Troubleshooting](#testing-and-troubleshooting)
   - [References](#references)
 
@@ -50,7 +50,9 @@ The ESP32 Root Module served as the Initializer to the ble-mesh Network. It is r
 In this section, we will be explaining 2 ways on using our program, specifically ESP-IDF.
 
 ### 1. Downloading ESP-IDF Extension on VSCode
-- You can download ESP-IDF Extension 
+- Make sure you have [VS Code](https://code.visualstudio.com/download), it can be any operating system, or any version of VS Code.
+- The next step is to download ESP-IDF Extension on VSCode. Th
+a s'er
   
 ## Communication Protocols
 [Network commands from uart]?
@@ -73,7 +75,7 @@ This repo contained several files and directories, but the important ones will b
 ### 1) Initialization
 The module is initialized and configured in `app_main()` when power on or resetted. It initialized all the `hardware componets`, `ble-mesh configurations`, and `uart procssing thread`, then attachs all event handlers. After initialization, root module sends and message to uart channel signaling root module online.
 
-In the code below, `line 3`, `esp_log_level_set(TAG_ALL, ESP_LOG_NONE);` disables esp logs that's used for develpment debug logging which will pollute uart channle on root module.
+In the code below, `line 3`, `esp_log_level_set(TAG_ALL, ESP_LOG_NONE);` disables esp logs that's used for develpment debug logging but will pollute uart channle on root module.
 
 ```c
 void app_main(void)
@@ -114,32 +116,46 @@ esp_err_t esp_module_root_init(
 ```
 Each handler function will get trigers by corresponding event [link here](#event-handler)
 
-### 2) UART Channel Managing
-### 3) Network Command Execution
-### 4) Event Handler
-- prov_complete_handler
-- config_complete_handler
-- recv_message_handler
-- recv_response_handler
-- timeout_handler
-- broadcast_handler
-- connectivity_handler
+### 2) UART Channel Logic Flow
+The module communicate with central pc via usb-uart port.
 
-## Error Handling
-=======
-First is the callback function that we have in `main.c`. Each function will have a description explaining its purpose, the parameters that are passed to it, and when/why it is triggered.
-- **prov_complete_handler**
-- **config_complete_handler**
-- **recv_message_handler**
-- **recv_response_handler**
-- **timeout_handler**
-- **broadcast_handler**
-- **connectivity_handler**
+1. `UART byte encoding` - To ensure the message bytes' integrity, message encoding was applied to add `\0xFF` and `\0xFE` speical bytes at the begining and end of an uart message. Also the messagebyte encoding was applied to encode all bytes >= `\0xFA` into 2 byte with xor gate to reserve all bytes > `\0xFA` as speical bytes. Uart encoding, decoding, and write functions is defined in `board.h` file with detield explainatiion.
+
+2. `UART channle listening thread` - The function `rx_task()` on main.c defines the uart signal handling logic. It create an infniate scaning loop to check uart buffer's data avalibility. Once the scaner read in datas, it passes to `uart_task_handler()` to scan for message start byte `\0xFF` and message end byte `\0xFE` to locate the message then decode the messsage and invoke `execute_uart_command()` to parse and execute the message recived.
+
+3. `execute_uart_command()` - This function responsible for executing commands from application level such as `BCAST`, `SEND-`, and etc. The module able to be extended for custom command by adding a case in this function.
+
+### 3) Network Commands - UART incoming
+The formate of network commands send to esp module is defined to consist `5_byte_network_command | payload` where the payloadi's format varys based on the command and detils on current commands is documented here. `[Add link later]------------------------`
+
+### 4) Module to App level - UART outgoing
+The formate of esp module to app level message is defined as `2_byte_node_addr | payload`. The first part is `netword endian` encoding of address of the node associated with the payload. For instance, the main use case is when module recived and message from src node `5`; the uart message will be `0x00 0x05 | message from node 5` (the uart escape byte endoing still get applied on top of this). 
+
+Other use cases are module's own address for module status message or debug use to pass 2 byte critical informations.
+
+### 5) Event Handler
+The network module exercised callback based event handlers to abstract away lower level logics in `ble_mesh_config_root/edge.c` and keep higher level event handling logic in `main.c`. The event handlers are following:
+- `prov_complete_handler` - Invoked when a node is provisioned and ready to join the network.
+- `config_complete_handler` - Invoked when a node is configed and joined the network.
+- `recv_message_handler` - Invoked when there is message from other node.
+- `recv_response_handler` - Invoked when recived response to previously sent response-expected message.
+- `timeout_handler` - Invoked when no response recived on previously sent response-expected message.
+- `broadcast_handler` - Invoked when recived broadcast message from any node.
+- `connectivity_handler` - Invoked when recived connectivity check (heartbeat) message from other node.
 
 OPTIONAL:
 Explain what defined can off, or how to change the app or net keIDid, or NetworkConfig, or even if they want to add another opcode or something
 
 ### Error Handling
+- Message bounce issue (ttl)
+- Buffer under read message (uart left over)
+- Provisioned edge bug when root reset (root reset, edge missed reset signal)
+- Power drain too small (might happen)
+- 
+
+
+OPTIONAL:
+potencial error and warning and current fix.
 
 ## Testing and Troubleshooting
 

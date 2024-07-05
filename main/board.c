@@ -137,7 +137,6 @@ int uart_decoded_bytes(uint8_t* data, size_t length, uint8_t* decoded_data) {
     return decoed_len;
 }
 
-
 // TB Finish, need to encode the send data for escape bytes
 // do we need to regulate the message length?
 int uart_sendData(uint16_t node_addr, uint8_t* data, size_t length)
