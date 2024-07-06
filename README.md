@@ -176,3 +176,6 @@ potencial error and warning and current fix.
 ## Testing and Troubleshooting
 
 ## References
+[ESP_BLE_MESH](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/esp-ble-mesh/ble-mesh-index.html)
+
+[ESP_BLE_MESH Github Project Examples](https://github.com/espressif/esp-idf/blob/master/examples/bluetooth/esp_ble_mesh/README.md)
