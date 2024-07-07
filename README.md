@@ -27,18 +27,18 @@ ESP32 Root Network Module
 ## Overview
 The ESP32 Root Module served as the Initializer to the ble-mesh Network. It is responsible for managing and coordinating the edge devices and also ensuring efficient communication and data processing. The ESP32 Root is equipped with WiFi and Bluetooth, but we're focusing more on the BLE Mesh Features. Features that are included are as follows:
 - Network Access Point
-  - Listen to `uart` channle of network commands and transmit bytes via `ble low energy`
+  - Listen to `uart` channel of network commands and transmit bytes via `ble low energy`
   - Write incoming messages (bytes) to `uart` channle
 - Provisioner of Network
   - Acts as a `main provisioner` for our mesh topology network to register new nodes
-  - Ability to triger `Remote Provision` (Implitly provision nodes outside the range of the root via hopping)
+  - Ability to trigger `Remote Provision` (Implicitly provision nodes outside the range of the root via hopping)
 - Core of Network
   - Initialize and Maintain the ble Network
   - Root keeps tracks the overall Network Status including Registered Nodes
   - Option of Non-Volatile or Volatile (Persistent or Non-Persistent Memory) of Network Status
       
 ## Hardware Components
-[not sure if the Custom PCB and the Antenna will be included here or something].
+For more information please contact the author if interested on the Custom PCB or Antenna.
 
 ## Software Components
 - ESP-IDF version 5.2.0 (Espressif IoT Development Framework)
